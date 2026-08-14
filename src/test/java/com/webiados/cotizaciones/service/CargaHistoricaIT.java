@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webiados.cotizaciones.db.TestPostgres;
 import com.webiados.cotizaciones.domain.QuoteStatus;
 import com.webiados.cotizaciones.dto.admin.CreateQuoteRequest;
+import com.webiados.cotizaciones.repo.QuoteRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,11 +52,26 @@ class CargaHistoricaIT {
     QuoteService quoteService;
 
     @Autowired
+    QuoteRepository quoteRepo;
+
+    @Autowired
     ObjectMapper json;
 
     /** El correo se mockea: cargar el histórico no debe escribirle a nadie. */
     @MockBean
     JavaMailSender mailSender;
+
+    /**
+     * Estado <strong>guardado</strong>, no el derivado.
+     *
+     * <p>El histórico se emitió en julio de 2026 y la validez son 15 días: hoy
+     * {@code statusAt(now)} devuelve EXPIRED, y hace bien. Lo que este test verifica es que la
+     * carga deje la marca de "enviada" en la base, que es el dato del embudo. La derivación a
+     * EXPIRED se prueba aparte, con reloj explícito, en {@code QuoteTest}.
+     */
+    private QuoteStatus estadoGuardado(java.util.UUID id) {
+        return quoteRepo.findById(id).orElseThrow().getStatus();
+    }
 
     private CreateQuoteRequest leer(String archivo) throws Exception {
         return json.readValue(CARGA.resolve(archivo).toFile(), CreateQuoteRequest.class);
@@ -89,7 +105,7 @@ class CargaHistoricaIT {
         // Queda SENT. El paso a SELECTED lo hace el script registrando la elección real
         // del cliente a través del flujo del cliente (unlock + select), para que quede
         // también en la bitácora de selecciones y no solo como un estado escrito a mano.
-        assertThat(detalle.status()).isEqualTo(QuoteStatus.SENT);
+        assertThat(estadoGuardado(creada.id())).isEqualTo(QuoteStatus.SENT);
 
         verifyNoInteractions(mailSender);
     }
@@ -103,7 +119,7 @@ class CargaHistoricaIT {
         var detalle = quoteService.markSentManually(creada.id(), emitida);
 
         assertThat(detalle.clientName()).isEqualTo("Pastelería Vientos del Sur");
-        assertThat(detalle.status())
+        assertThat(estadoGuardado(creada.id()))
                 .as("este es el estado que antes era imposible representar")
                 .isEqualTo(QuoteStatus.SENT);
         assertThat(detalle.sentAt()).isEqualTo(emitida);

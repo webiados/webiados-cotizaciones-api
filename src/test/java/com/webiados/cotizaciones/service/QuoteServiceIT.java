@@ -285,7 +285,11 @@ class QuoteServiceIT {
 
         assertThat(detalle.createdAt()).isEqualTo(emitida);
         assertThat(detalle.sentAt()).isEqualTo(emitida);
-        assertThat(detalle.status()).isEqualTo(QuoteStatus.SENT);
+        // El estado guardado, no el derivado: una cotización de julio ya venció (15 días de
+        // validez) y `statusAt(now)` devuelve EXPIRED con razón. Lo que importa acá es que la
+        // carga histórica dejó la marca de enviada en la base.
+        assertThat(quoteRepo.findById(creada.id()).orElseThrow().getStatus())
+                .isEqualTo(QuoteStatus.SENT);
         org.mockito.Mockito.verifyNoInteractions(mailSender);
     }
 
