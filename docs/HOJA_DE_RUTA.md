@@ -24,6 +24,15 @@ Además se improvisan montos fuera de `pricing.md`, que es una regla dura del ec
 Desplegado en Railway, último commit 2026-07-22. Spring Boot 3.x + PostgreSQL + Flyway + JWT.
 Formulario público en `cotiza.webiados.com`, panel privado de administración.
 
+> ⚠️ **`cotiza.webiados.com` todavía no resuelve: le falta el registro DNS** (verificado
+> 2026-08-13, `dig` devuelve vacío). El servicio está vivo en
+> `https://cotizaciones-api-production-e0fb.up.railway.app` y el frontend en `webiados.com`
+> (`/admin` y `/cotizacion/{codigo}`). El subdominio se deja escrito a propósito: se arregla
+> el DNS, no los documentos. Detalle del pendiente en el buzón
+> `../../Demos-Webiados-Clientes/docs/reportes/webiados-cotizaciones-api.md`.
+> Nota aparte: **no existe formulario público** de solicitud de cotización — ver
+> [`AUDITORIA.md`](AUDITORIA.md) §2.1. El flujo es saliente.
+
 Dominio: `Quote` (con estados `PENDING → REVIEWED → SENT → ACCEPTED / REJECTED`), `QuoteOption`,
 `Selection`, `AdminUser`. `V3__add_landing_fields.sql` ya agregó `titulo`, `mensaje` e `imagenes`
 para landings de marca.
