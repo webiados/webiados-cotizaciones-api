@@ -12,8 +12,9 @@ desplegado** (`cotizaciones-api-production-e0fb.up.railway.app`, Railway; V4 des
 2026-07-31) — y sin embargo las dos cotizaciones reales del mes, Macarena Larraín y la
 pastelería Vientos del Sur, **se escribieron a mano en Markdown y se exportaron a PDF**.
 
-> ⚠️ `cotiza.webiados.com` **no existe** (NXDOMAIN). El panel y la landing viven en
-> `webiados.com` (`/admin` y `/cotizacion/{codigo}`), frontend Angular en `webiados/webiados`.
+> ℹ️ `cotiza.webiados.com` **ya resuelve** (verificado 2026-08-19): apunta por CNAME a
+> Railway, o sea a **esta API** — devuelve JSON, no una pantalla. El panel y la landing siguen
+> en `webiados.com` (`/admin` y `/cotizacion/{codigo}`), frontend Angular en `webiados/webiados`.
 
 Eso significa tres cosas, todas malas: se pierde el historial comercial, se improvisan montos
 fuera de `pricing.md`, y no hay forma de saber cuántas cotizaciones se enviaron ni cuántas se

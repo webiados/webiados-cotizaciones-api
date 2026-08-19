@@ -14,7 +14,8 @@ usar el sistema con un prospecto real.
 - [x] 1.1 Servicio y panel verificados en producción
       · API `UP` en `cotizaciones-api-production-e0fb.up.railway.app` (401 correcto sin token)
       · Panel abre en `webiados.com/admin/login`
-      · ⚠️ `cotiza.webiados.com` **no existe** (NXDOMAIN) — la doc apunta a un dominio muerto
+      · ✅ `cotiza.webiados.com` ya resuelve (2026-08-19): CNAME a Railway, `/actuator/health` 200 UP
+      · ⚠️ Apunta a la **API**, no al panel: sirve JSON. El panel sigue en `webiados.com/admin`
       · ⚠️ Login efectivo **no verificado**: faltan credenciales
 - [x] 1.2 Macarena Larraín cargada — Opción C, $380.000 + IVA, `SELECTED`
       · Cargada por Felipe el 2026-07-31 (V4 en producción). Estado `SELECTED`, con nota del 50% pagado

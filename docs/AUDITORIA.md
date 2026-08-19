@@ -21,7 +21,7 @@ cliente**. Por eso las cotizaciones reales se siguen escribiendo en Markdown.
 
 | Qué | Resultado |
 |---|---|
-| `cotiza.webiados.com` | ❌ **NXDOMAIN — el dominio no existe** |
+| `cotiza.webiados.com` | ❌ **NXDOMAIN — el dominio no existe** · ⏩ *arreglado: ver la nota al pie de esta sección* |
 | `cotizaciones-api-production-e0fb.up.railway.app/actuator/health` | ✅ `{"status":"UP"}` (200) |
 | `GET /api/admin/quotes` sin token | ✅ 401 `{"title":"No autenticado"}` |
 | `POST /api/admin/auth/login` con body vacío | ✅ 400 con validación en español |
@@ -37,6 +37,13 @@ No la deduje: está declarada en el `content-security-policy` del frontend en pr
 `SIGUIENTE.md:11`, `docs/HOJA_DE_RUTA.md:25` y en el default de `CORS_ALLOWED_ORIGINS`
 (`application.yml:48`). **Ese subdominio no está en DNS.** El sistema real vive todo bajo
 `webiados.com`: panel en `/admin`, landing del cliente en `/cotizacion/{codigo}`.
+
+> **Actualización 2026-08-19 — esto ya no es cierto.** El DNS se creó: `cotiza.webiados.com`
+> resuelve por `CNAME` a `d2g6tt2d.up.railway.app` y `/actuator/health` responde
+> `200 {"status":"UP"}`. Se deja el hallazgo original arriba porque una auditoría es una foto
+> con fecha, no un documento vivo. **Ojo con el matiz:** el subdominio quedó apuntando a
+> **Railway (esta API)**, no al frontend en Vercel — abrirlo en el navegador devuelve JSON. El
+> panel y la landing siguen en `webiados.com`. Y sigue sin existir formulario público (§2.1).
 
 > ✅ **1.1 se puede dar por verificada** en cuanto a que el servicio responde y el panel
 > abre. Lo que **no** pude verificar es el login efectivo: no tengo credenciales de admin

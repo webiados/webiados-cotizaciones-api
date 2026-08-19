@@ -24,8 +24,9 @@ Además se improvisan montos fuera de `pricing.md`, que es una regla dura del ec
 Desplegado en Railway, último commit 2026-07-22. Spring Boot 3.x + PostgreSQL + Flyway + JWT.
 Formulario público en `cotiza.webiados.com`, panel privado de administración.
 
-> ⚠️ **`cotiza.webiados.com` todavía no resuelve: le falta el registro DNS** (verificado
-> 2026-08-13, `dig` devuelve vacío). El servicio está vivo en
+> ✅ **`cotiza.webiados.com` ya resuelve** (verificado 2026-08-19: CNAME →
+> `d2g6tt2d.up.railway.app`, `/actuator/health` → `200 {"status":"UP"}`). Quedó apuntando a
+> **Railway, o sea a esta API**: devuelve JSON, no una pantalla. El servicio está vivo en
 > `https://cotizaciones-api-production-e0fb.up.railway.app` y el frontend en `webiados.com`
 > (`/admin` y `/cotizacion/{codigo}`). El subdominio se deja escrito a propósito: se arregla
 > el DNS, no los documentos. Detalle del pendiente en el buzón

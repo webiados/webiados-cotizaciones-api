@@ -43,13 +43,16 @@ Deployed on Railway with a PostgreSQL plugin. Real base URL:
 `https://cotizaciones-api-production-e0fb.up.railway.app`. The Angular frontend (panel and
 client landing) lives at `webiados.com` — `github.com/webiados/webiados`.
 
-> ⚠️ `cotiza.webiados.com` appears throughout the older docs but **does not exist**
-> (NXDOMAIN, verified 2026-07-27).
+> ℹ️ `cotiza.webiados.com` **now resolves** (verified 2026-08-19): `CNAME` →
+> `d2g6tt2d.up.railway.app`, `/actuator/health` → `200 {"status":"UP"}`. It points at
+> **Railway — this API**, not at the frontend, so it serves JSON, not a screen. The panel and
+> the client landing stay on `webiados.com` (`/admin`, `/cotizacion/{codigo}`). Docs written
+> before 2026-08-13 call it NXDOMAIN; that was true then and is not any more.
 
 ## Commands
 
 - `./mvnw spring-boot:run` — start dev server (requires local Postgres or `.env` pointing at Railway).
-- `./mvnw test` — run all 53 tests. Uses a real embedded Postgres (Zonky), **no Docker needed**.
+- `./mvnw test` — run all 86 tests. Uses a real embedded Postgres (Zonky), **no Docker needed**.
 - `./mvnw package -DskipTests` — build the fat JAR.
 - `docker build -t webiados-cotizaciones-api .` — build the Docker image (Dockerfile at root).
 - Copy `.env.example` → `.env` and fill in values before running locally.
