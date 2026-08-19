@@ -17,3 +17,6 @@ build/
 .worktrees/
 # Scratch de subagent-driven-development (ledger, briefs, reports). No se versiona.
 .superpowers/
+
+# Artefactos de Playwright MCP (capturas, snapshots, consola). No se versionan.
+.playwright-mcp/
