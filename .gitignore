@@ -20,3 +20,9 @@ build/
 
 # Artefactos de Playwright MCP (capturas, snapshots, consola). No se versionan.
 .playwright-mcp/
+
+# Un `.env.bak.<epoch>` se coló versionado 12 dias en el starter kit (2026-08-07 al
+# 08-19) con la contrasena de la base, el secreto de firma y el par de llaves de R2.
+# Los patrones que habia —`.env`, `.env.local`— no lo atrapaban. Este si.
+.env*
+!.env.example
