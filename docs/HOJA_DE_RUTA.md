@@ -34,9 +34,15 @@ Formulario público en `cotiza.webiados.com`, panel privado de administración.
 > Nota aparte: **no existe formulario público** de solicitud de cotización — ver
 > [`AUDITORIA.md`](AUDITORIA.md) §2.1. El flujo es saliente.
 
-Dominio: `Quote` (con estados `PENDING → REVIEWED → SENT → ACCEPTED / REJECTED`), `QuoteOption`,
-`Selection`, `AdminUser`. `V3__add_landing_fields.sql` ya agregó `titulo`, `mensaje` e `imagenes`
-para landings de marca.
+Dominio: `Quote`, `QuoteOption`, `Selection`, `AdminUser`. `V3__add_landing_fields.sql` ya agregó
+`titulo`, `mensaje` e `imagenes` para landings de marca.
+
+> ⚠️ **Corrección (auditoría de código, 2026-08-20).** Este documento decía que los estados eran
+> `PENDING → REVIEWED → SENT → ACCEPTED / REJECTED`. **Ni `REVIEWED` ni `ACCEPTED` existen.** Los
+> estados reales (`QuoteStatus`, persistidos desde V4) son **`PENDING`, `SENT`, `SELECTED` y
+> `REJECTED`**, más **`EXPIRED`, que se deriva del reloj y nunca se guarda** (`Quote.statusAt`).
+> Una cotización aceptada es `SELECTED`, y no vence nunca. Si alguien pide cargar algo "en
+> ACCEPTED", se refiere a `SELECTED`.
 
 ---
 
@@ -66,8 +72,8 @@ para landings de marca.
 
 | # | Tarea | Verificación |
 |---|---|---|
-| 2.1 | Consumir `GET /api/v1/pricing` del Core | Las `Selection` se pueblan desde el Core |
-| 2.2 | Job o comando de sincronización de `Selection` | Un cambio en `pricing.md` se refleja acá |
+| 2.1 | Consumir `GET /api/v1/pricing` del Core | ✅ **hecho y desplegado** (`PricingClient` + `GET /api/admin/pricing`) |
+| 2.2 | ~~Job de sincronización de `Selection`~~ | ❌ **no ejecutable**: `Selection` es una bitácora, no un catálogo. Reemplazada por el read-through cacheado — ver [`SPRINT2_PRECIOS.md`](SPRINT2_PRECIOS.md) |
 | 2.3 | Si no se puede sincronizar, documentar por qué y cómo se mantienen alineados | Documento escrito |
 | 2.4 | Test: ningún monto hardcodeado en el código | Test en verde |
 

@@ -37,6 +37,27 @@ usar el sistema con un prospecto real.
       - [x] `JWT_SECRET` sin default: el servicio se niega a arrancar sin secreto
             (verificado en prod: **NO usa el default**; corregido igual — ver AUDITORIA §8)
       - [ ] Menores §3 #8 restantes: `catch (Exception)` del unlock, rate limit tras proxy
+- [ ] 1.4.bis **Impedimentos nuevos** — auditoría de código del 2026-08-20, a partir de la
+      **tercera cotización escrita a mano** (Pastelería Vegana, editada el 2026-08-17). El hábito
+      no se detuvo, y estas son las razones concretas, no excusas:
+      - [ ] **Desglose de partidas con precio.** La vegana cotiza $640.000 + $250.000 + $150.000 =
+            $1.040.000 dentro de *una* opción. `QuoteOption` tiene un `precio` y `features` es
+            `List<String>`: el desglose queda como texto y el IVA se calcula solo sobre el total.
+            Es la parte que hace entendible el monto, y hoy no es dato.
+      - [ ] **Descuento como línea.** La versión FUNDADOR muestra "valor de lista $1.040.000 −
+            descuento $550.000 = $490.000". No hay forma de representarlo: hay que hornear el neto
+            y se pierde el ancla de precio, que es justo lo que vende.
+      - [ ] **Dos modalidades en la misma opción.** "Alternativa sin mensualidad: $2.200.000 pago
+            único" convive con la modalidad mensual. El modelo tiene `precio` + `precioMensual`,
+            no dos formas de comprar lo mismo. (Ya estaba anotado arriba como texto libre.)
+      - [ ] **Vigencia de 15 días** (`QUOTE_VALIDITY_DAYS`). Vientos del Sur venció el 2026-08-11:
+            hoy el cliente que abra su link **no puede elegir** (`canSelect` = false). Para una
+            decisión B2B de $1,2M es corto. Se cambia por variable de entorno, sin tocar código.
+      - [ ] **Las dos cargadas no tienen `clientEmail`**, y `send()` se niega a enviar sin correo.
+            Solo admiten `mark-sent`. Para "enviarla desde el sistema" hace falta ese dato.
+      - [ ] **El `$550.000` del descuento Fundador no está en `pricing.md`** — es el único monto
+            improvisado que apareció (los otros sí están en el catálogo). Contrastarlo con el piso
+            de la parte interna antes de repetirlo.
 - [ ] **DoD:** una cotización real enviada a un cliente desde el sistema
 
 ## Sprint 2 — Una sola fuente de precios `P1`
@@ -71,10 +92,15 @@ usar el sistema con un prospecto real.
 
 | Cliente | Monto | Estado | Cargada |
 |---|---|---|---|
-| Macarena Larraín — Opción C | $380.000 + IVA ($452.200) | `SELECTED` | [ ] |
-| Pastelería Vientos del Sur — Opción A | $1.040.000 + IVA ($1.237.600) · $49.000/mes | `SENT` | [ ] |
-| Pastelería Vientos del Sur — Opción B ⭐ | $1.240.000 + IVA ($1.475.600) · $49.000/mes | `SENT` | [ ] |
-| Pastelería Vientos del Sur — Opción C | $1.640.000 + IVA ($1.951.600) · $74.000/mes | `SENT` | [ ] |
+| Macarena Larraín — Opción C | $380.000 + IVA ($452.200) | `SELECTED` | [x] 2026-07-31 |
+| Pastelería Vientos del Sur — Opción A | $1.040.000 + IVA ($1.237.600) · $49.000/mes | `SENT` | [x] 2026-07-31 |
+| Pastelería Vientos del Sur — Opción B ⭐ | $1.240.000 + IVA ($1.475.600) · $49.000/mes | `SENT` | [x] 2026-07-31 |
+| Pastelería Vientos del Sur — Opción C | $1.640.000 + IVA ($1.951.600) · $74.000/mes | `SENT` | [x] 2026-07-31 |
+
+> Cargadas por Felipe con `cargar.sh` (el modelo no escribe en producción). Las casillas estaban
+> sin marcar mientras 1.2 y 1.3 ya figuraban hechas: se alineó el 2026-08-20.
+> ⚠️ **Sigue sin verificarse con los ojos**: ver las dos en el panel requiere el login de admin,
+> que el modelo no toma. Es el único paso de Sprint 1 que sigue dependiendo de Felipe.
 
 *Originales en `../Demos-Webiados-Clientes/docs/Cotizaciones/`* — Macarena es un **PDF**
 (`Cotización_Macarena_Larrain.pdf`, 3 opciones: A $150.000 / B $260.000 / C $380.000, más
