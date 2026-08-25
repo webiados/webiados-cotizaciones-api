@@ -156,3 +156,30 @@ See `.env.example` for the full list. Key vars:
 | `MAIL_*` | SMTP config (Resend or Brevo) |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed frontend origins |
 | `QUOTE_PUBLIC_BASE_URL` | Base of the client landing URL (default `https://webiados.com/cotizacion`) |
+
+## Ahorro de tokens — obligatorio para todos los modelos
+
+Este repo funciona con Claude Code de pago. **Optimizar tokens no es opcional, es parte del
+trabajo.** Reglas:
+
+1. **Leer la documentación antes de proponer.** Ya pasó varias veces: un modelo propone rehacer
+   algo que ya estaba hecho y escrito. Rehacer cuesta 10 veces más que leer un reporte.
+2. **`grep` y `sed -n` en vez de leer archivos completos.** Leer un archivo de 900 líneas para ver
+   3 son ~15.000 tokens tirados.
+3. **Nunca leer un `.jsonl` de sesión, un `dist/` ni un `node_modules/`.** Un solo archivo así
+   llena el contexto y obliga a truncar o a empezar de nuevo.
+4. **Subagentes para lo que se lee mucho y se responde poco.** Auditorías y barridos: el subagente
+   lee 100.000 tokens y devuelve 15 líneas de resumen — el costo grande queda contenido ahí.
+5. **Sonnet para ejecutar, Opus para decidir.** Migrar archivos, verificar datos y correr suites no
+   necesita el modelo más caro. Diseñar una arquitectura o una estrategia, sí.
+6. **Un solo comando compuesto en vez de cinco.** Cada llamada a una herramienta tiene costo fijo.
+   `cmd1 && cmd2 && cmd3` cuesta una llamada, no tres.
+7. **No narrar el proceso: entregar el resultado.** Los pasos intermedios se pagan y casi nunca se
+   usan. El reporte final es lo que importa.
+8. **Verificar contra el sistema real, no releyendo el código.** Un `curl` de 20 tokens reemplaza
+   leer tres archivos para adivinar qué responde un endpoint.
+9. **Reportes cortos y estructurados.** El reporte se relee en cada sesión siguiente: lo que sobra
+   se paga muchas veces, no una.
+
+**Regla de oro: lo que ya está escrito, no se vuelve a averiguar.** Por eso existen los reportes y
+las auditorías — y por eso se leen antes de empezar, no después de equivocarse.
