@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -45,6 +46,17 @@ public class ApiExceptionHandler {
     public ProblemDetail handleIllegalArg(IllegalArgumentException ex) {
         var detail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         detail.setTitle("Solicitud inválida");
+        detail.setDetail(ex.getMessage());
+        return detail;
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        // Sin este handler explícito, Exception.class de más abajo intercepta esta excepción
+        // de Spring antes que el resolver por defecto y la convierte en 500, ocultando que
+        // la ruta existe pero con otro verbo (ej: DELETE en una ruta que solo tiene GET/POST).
+        var detail = ProblemDetail.forStatus(HttpStatus.METHOD_NOT_ALLOWED);
+        detail.setTitle("Método no soportado");
         detail.setDetail(ex.getMessage());
         return detail;
     }

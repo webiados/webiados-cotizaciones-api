@@ -24,7 +24,11 @@ class EmailContentTest {
         assertThat(html).contains(CODIGO);
         assertThat(html).contains("hasta el <strong");           // vigencia en lenguaje humano
         assertThat(html).contains(VIGENCIA);
-        assertThat(html).contains("logo-webiados-white.webp");   // logo alojado en el sitio
+        assertThat(html).contains("cid:logo-webiados");           // logo incrustado (cid), no .webp:
+                                                                   // WebP no lo soportan todos los
+                                                                   // clientes de correo (Outlook, y el
+                                                                   // proxy de imágenes de Gmail lo
+                                                                   // corrompe en vez de mostrarlo)
         assertThat(html).contains("alt=\"Webiados\"");           // se entiende sin ver la imagen
         assertThat(html).contains("#d3e600");                    // identidad: lima
         assertThat(html).contains("#0a0a0a");                    // identidad: tinta

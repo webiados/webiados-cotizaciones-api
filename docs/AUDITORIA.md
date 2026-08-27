@@ -462,6 +462,41 @@ de Macarena y del Markdown de la pastelería: si alguien cambia esa cuenta, el t
 
 ---
 
+## 5.ter Qué se resolvió el 2026-08-25 (primera cotización real salida del sistema)
+
+La cotización de Cubillos Soza fue la primera que salió del sistema en vez de escribirse a
+mano. Aparecieron dos bugs al probarla, y el segundo era peor que el primero.
+
+**Causa raíz encontrada (no solo el síntoma):** `ApiExceptionHandler.handleGeneric`
+(`@ExceptionHandler(Exception.class)`) vive en un `@RestControllerAdvice`, que Spring
+resuelve *antes* que su `DefaultHandlerExceptionResolver`. Por eso interceptaba también
+excepciones propias de Spring que ya traían su status correcto —como
+`HttpRequestMethodNotSupportedException` (405)— y las forzaba a 500 "Error interno". No
+era solo el bug del DELETE: cualquier excepción de Spring no listada explícitamente pierde
+su causa real, en cualquier endpoint. **Resuelto:** handler explícito para
+`HttpRequestMethodNotSupportedException` antes del genérico. Test TDD que falla con 500
+antes del fix y pasa con 405 después (`ApiExceptionHandlerTest`). 87/87 tests en verde.
+
+**`DELETE /api/admin/quotes/{id}` no existe — decisión: no implementarlo.** Revisado el
+frontend (`github.com/webiados/webiados`, `quotes-api.ts`): no hay ningún botón ni llamada
+que borre una cotización completa, solo `deleteOption` sobre una opción puntual, que sí
+funciona. El 500 original salió de una prueba manual contra una ruta que el panel nunca usa.
+No hay caso de uso pedido (una cotización se rechaza o se le quitan opciones, no se borra
+entera) y borrar la cotización completa abriría una pregunta sin resolver: qué pasa con las
+`Selection` (auditoría) que le pertenecen. Con el fix de arriba, ahora responde 405
+correctamente en vez de 500.
+
+**Worktree `.worktrees/fix-admin-403-auth` eliminado.** Sus 32 commits ya estaban
+completamente fusionados a `master` (cero commits propios sin mergear, diff vacío contra
+`ApiExceptionHandler.java`). No había código divergente que reintrodujera este bug — era un
+worktree olvidado, no trabajo vivo.
+
+**Los tres huecos para cotizaciones complejas** (desglose de partidas con precio dentro de
+una opción, descuento como línea, dos modalidades de pago) siguen abiertos, estimados en
+16-24h — no se tocó código de eso en esta sesión, la estimación no se revalidó.
+
+---
+
 ## 6. Qué necesito de Felipe para cerrar 1.2 y 1.3
 
 Las dos cotizaciones están **listas para cargar** en

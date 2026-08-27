@@ -8,6 +8,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -26,8 +27,12 @@ public class EmailService {
     private static final String SOFT = "#f5f5f5";
     private static final String PAPER = "#e5e8ef";
     private static final String SITIO = "https://webiados.com";
-    // Logo blanco, para el encabezado sobre fondo tinta. Alojado en el sitio.
-    private static final String LOGO_URL = "https://webiados.com/img/logo-webiados-white.webp";
+    // Logo blanco, para el encabezado sobre fondo tinta. Va incrustado en el correo (cid), NO como
+    // URL externa: el original del sitio es .webp, y WebP no lo soportan todos los clientes de
+    // correo (Outlook no lo soporta; el proxy de imágenes de Gmail lo mostró corrupto en vez de
+    // renderizarlo). PNG incrustado no depende del sitio ni del formato.
+    private static final String LOGO_CID = "logo-webiados";
+    private static final String LOGO_RESOURCE = "email/logo-webiados-white.png";
     // Pila de fuentes del sistema: NO se pueden usar fuentes web (Bricolage) en un correo.
     private static final String FUENTE =
             "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -82,6 +87,7 @@ public class EmailService {
             helper.setReplyTo(props.mail().notifyTo());
             helper.setSubject(subject);
             helper.setText(text, html); // (texto plano, html) → multipart/alternative
+            helper.addInline(LOGO_CID, new ClassPathResource(LOGO_RESOURCE), "image/png");
             mailSender.send(mime);
         } catch (MessagingException ex) {
             // No debería pasar (armamos el mensaje nosotros), pero si pasa, que la cotización
@@ -113,7 +119,7 @@ public class EmailService {
                         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%%; max-width:600px; background-color:#ffffff; border-radius:16px; overflow:hidden; font-family:%2$s;">
                           <tr>
                             <td align="center" style="background-color:%3$s; padding:28px 24px;">
-                              <img src="%4$s" alt="Webiados" width="150" style="display:block; border:0; height:auto; color:%5$s; font-size:22px; font-weight:bold;">
+                              <img src="cid:%4$s" alt="Webiados" width="150" style="display:block; border:0; height:auto; color:%5$s; font-size:22px; font-weight:bold;">
                             </td>
                           </tr>
                           <tr>
@@ -164,7 +170,7 @@ public class EmailService {
                 </body>
                 </html>
                 """.formatted(
-                SOFT, FUENTE, TINTA, LOGO_URL, LIMA, n, MUTED, u, PAPER, MONO, codigo, clave, vigencia, SITIO);
+                SOFT, FUENTE, TINTA, LOGO_CID, LIMA, n, MUTED, u, PAPER, MONO, codigo, clave, vigencia, SITIO);
     }
 
     /** Versión en texto plano del mismo correo (obligatoria: sin ella varios filtros = spam). */
