@@ -1,6 +1,7 @@
 package com.webiados.cotizaciones.service;
 
 import com.webiados.cotizaciones.domain.QuoteOption;
+import com.webiados.cotizaciones.dto.admin.OptionWarning;
 import com.webiados.cotizaciones.dto.pricing.ItemPrecio;
 import com.webiados.cotizaciones.dto.pricing.PricingCatalog;
 import org.slf4j.Logger;
@@ -45,7 +46,7 @@ public class PricingWarningService {
         this.pricing = pricing;
     }
 
-    public List<String> check(List<QuoteOption> options) {
+    public List<OptionWarning> check(List<QuoteOption> options) {
         boolean algunaConRef = options.stream()
                 .anyMatch(o -> o.getPricingRef() != null && !o.getPricingRef().isBlank());
         if (!algunaConRef) {
@@ -61,7 +62,7 @@ public class PricingWarningService {
             return List.of();
         }
 
-        List<String> warnings = new ArrayList<>();
+        List<OptionWarning> warnings = new ArrayList<>();
         for (QuoteOption option : options) {
             String ref = option.getPricingRef();
             if (ref == null || ref.isBlank()) {
@@ -69,25 +70,28 @@ public class PricingWarningService {
             }
             ItemPrecio item = buscar(catalogo, ref);
             if (item == null) {
-                warnings.add("«%s»: no se encontró «%s» en el catálogo actual — puede que haya "
-                        .formatted(option.getTitulo(), ref)
-                        + "cambiado de nombre o se haya retirado.");
+                warnings.add(new OptionWarning(option.getId(),
+                        "«%s»: no se encontró «%s» en el catálogo actual — puede que haya "
+                                .formatted(option.getTitulo(), ref)
+                                + "cambiado de nombre o se haya retirado."));
                 continue;
             }
-            comparar(option.getTitulo(), "de instalación", item.setup(), option.getPrecio(), warnings);
-            comparar(option.getTitulo(), "mensuales", item.mensual(), option.getPrecioMensual(), warnings);
+            comparar(option, "de instalación", item.setup(), option.getPrecio(), warnings);
+            comparar(option, "mensuales", item.mensual(), option.getPrecioMensual(), warnings);
         }
         return warnings;
     }
 
-    private void comparar(String titulo, String etiqueta, BigDecimal delCatalogo, BigDecimal deLaOpcion,
-                           List<String> warnings) {
+    private void comparar(QuoteOption option, String etiqueta, BigDecimal delCatalogo,
+                           BigDecimal deLaOpcion, List<OptionWarning> warnings) {
         if (delCatalogo == null || deLaOpcion == null) {
             return; // Sin los dos montos no hay nada que comparar.
         }
         if (delCatalogo.compareTo(deLaOpcion) != 0) {
-            warnings.add("«%s»: el catálogo hoy dice %s %s, esta opción dice %s.".formatted(
-                    titulo, Formatos.moneda(delCatalogo), etiqueta, Formatos.moneda(deLaOpcion)));
+            warnings.add(new OptionWarning(option.getId(),
+                    "«%s»: el catálogo hoy dice %s %s, esta opción dice %s.".formatted(
+                            option.getTitulo(), Formatos.moneda(delCatalogo), etiqueta,
+                            Formatos.moneda(deLaOpcion))));
         }
     }
 

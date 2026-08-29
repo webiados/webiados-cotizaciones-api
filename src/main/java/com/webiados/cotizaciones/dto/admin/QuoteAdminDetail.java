@@ -32,7 +32,12 @@ public record QuoteAdminDetail(
          * Avisos no bloqueantes: opciones cuyo precio ya no calza con el catálogo del Core hoy.
          * Solo se generan para opciones con {@code pricingRef} — nunca para una armada a mano.
          * Vacío no significa "todo calza": significa "nada que comparar, o comparó y calzó".
+         *
+         * <p>{@code optionId} viaja como dato: el título de una opción NO es único dentro de
+         * una cotización (dos formas de pagar el mismo kit, tituladas igual a propósito, es un
+         * caso real) — parsear a qué opción pertenece un aviso desde el texto fallaría en
+         * silencio justo ahí.
          */
-        List<String> warnings
+        List<OptionWarning> warnings
 ) {
 }

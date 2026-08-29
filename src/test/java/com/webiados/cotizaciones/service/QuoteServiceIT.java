@@ -250,7 +250,11 @@ class QuoteServiceIT {
                 opcion("Kit Tienda", 850000, 49000L, "Tienda"));
 
         assertThat(detalle.warnings()).hasSize(1);
-        assertThat(detalle.warnings().get(0))
+        var warning = detalle.warnings().get(0);
+        assertThat(warning.optionId())
+                .as("el destino del aviso viaja como dato, no se deduce del texto")
+                .isEqualTo(detalle.options().get(3).id());
+        assertThat(warning.message())
                 .as("no basta con avisar que algo no calza: hay que decir qué dice el catálogo hoy")
                 .contains("Kit Tienda").contains("$890.000").contains("$850.000");
     }
