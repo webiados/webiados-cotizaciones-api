@@ -1,5 +1,10 @@
 # SIGUIENTE — Cotizaciones API
 
+> 🔍 **Este archivo no se toca desde 2026-08-19 y va atrasado.** Antes de tomar cualquier
+> tarea de acá como pendiente, confirma en [`docs/AUDITORIA.md`](docs/AUDITORIA.md) — es la
+> única que se sigue actualizando contra el sistema real. Ya hubo cotizaciones reales
+> enviadas después de esta fecha (Cubillos, Duval, Navautos — ver `AUDITORIA.md` §5.ter/§5.quater).
+>
 > **Prioridad en el ecosistema: P0** · Decidido 2026-07-27
 > Contexto global: `../Demos-Webiados-Clientes/CONTROL.md`
 > Estrategia comercial: `../Demos-Webiados-Clientes/docs/estrategia_comercial.md`

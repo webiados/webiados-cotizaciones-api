@@ -6,8 +6,12 @@
 **Progreso: 4 / 20** · V4 y frontend desplegados (2026-07-31), histórico cargado. Falta el DoD:
 usar el sistema con un prospecto real.
 
-> 🔍 **Auditoría del código hecha el 2026-07-27:** [`docs/AUDITORIA.md`](docs/AUDITORIA.md).
-> Léela antes de seguir — cambia el alcance de los sprints 2, 3 y 4.
+> 🔍 **[`docs/AUDITORIA.md`](docs/AUDITORIA.md) es la fuente de verdad del estado real** — es
+> la única que se sigue actualizando contra el sistema real (código, `curl`, `railway
+> variables`), no contra otro documento. Este archivo y `SIGUIENTE.md` se atrasan; si algo acá
+> parece pendiente, confirma en `AUDITORIA.md` antes de creerlo — puede que ya esté hecho
+> (auditoría de documentación, 2026-08-28: Sprint 2.1 y Sprint 3 completos y desplegados,
+> aunque acá sigan como `[ ]`).
 
 ## Sprint 1 — Adopción `P0`
 

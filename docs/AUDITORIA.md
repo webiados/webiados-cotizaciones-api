@@ -495,6 +495,42 @@ worktree olvidado, no trabajo vivo.
 una opción, descuento como línea, dos modalidades de pago) siguen abiertos, estimados en
 16-24h — no se tocó código de eso en esta sesión, la estimación no se revalidó.
 
+## 5.quater Un cuarto hueco, encontrado con un cliente real (Navautos, 2026-08-27)
+
+`QuoteOption.precio` es `NUMERIC(14,2) NOT NULL` (`V1__init.sql`). El modelo solo tiene dos
+montos por opción: **`precio`** (pago único) y **`precioMensual`** (recurrente, todos los
+meses). No existe una tercera forma: **un monto real, pagadero una vez, en una fecha futura
+distinta de "al firmar"**.
+
+Apareció con Navautos: el setup está **diferido 12 meses**, no exento — hay un monto real que
+se va a cobrar, solo que después. Poner `precio=0` no representa eso: dice que el setup
+**cuesta cero**, que es falso, y en 12 meses el cliente lee un número, no el texto al lado.
+Un número puesto por obligación del schema se lee igual que uno decidido — es exactamente la
+ambigüedad que la cotización existía para cerrar.
+
+**Lo que el sistema permite hoy, sin tocar el modelo:** poner el **monto real** en `precio`
+(el valor que se va a cobrar, no cero) y describir el diferimiento como condición de pago en
+`descripcion`/`features` — "se cobra a los 12 meses, no al firmar". Es honesto: el número es
+real, la condición de pago es texto, que es lo que la condición de pago siempre es en estas
+cotizaciones (ver "50% al firmar, 50% a la entrega" en las demás). **Lo que no existe es una
+línea con su propia fecha** — no hay forma de decir "$X el [fecha]" como dato estructurado
+independiente del "pago único al firmar" que `precio` representa implícitamente.
+
+**No se construye ahora** — hay un cliente esperando y esto es de fondo. Se anota como el
+cuarto hueco de la misma familia que los otros tres (desglose de partidas, descuento como
+línea, dos modalidades de pago): todos son variantes de lo mismo — **el modelo de precios
+solo sabe representar "una vez, ahora" y "cada mes, siempre"**. Un pago único diferido, un
+pago fraccionado con fechas, o un descuento como línea aparte son la misma clase de problema
+y probablemente se resuelven juntos.
+
+**Resuelto en la cotización de Navautos (2026-08-27, mismo día):** Felipe decidió los montos.
+Se aplicó exactamente el camino descrito arriba — `precio=890000` (precio de lista del Kit
+Tienda, `pricing.md`), sin tocar el schema, con la fecha de cobro (27-ago-2027) y las
+consecuencias (qué pasa si cierra antes, si deja de pagar, de quién es el sitio hasta que se
+pague) como texto en `descripcion`/`features`. El hueco de fondo (no hay línea con fecha
+propia) sigue sin resolverse — esto confirma que el rodeo funciona para un caso, no que el
+hueco se cerró.
+
 ---
 
 ## 6. Qué necesito de Felipe para cerrar 1.2 y 1.3
@@ -532,3 +568,35 @@ Dos cosas que conviene saber antes:
 3. La fecha de emisión de Vientos del Sur (2026-07-27) es una **suposición**: el Markdown
    original no lleva fecha impresa, a diferencia del PDF de Macarena. Si fue otra,
    corrígela antes de medir la tasa de cierre.
+
+---
+
+## 7. Auditoría de documentación (2026-08-28) — dos decisiones que se tomaron y no se escribieron
+
+Encargo de Felipe: revisar todos los `.md` del repo contra el sistema real, sin corregir nada
+sin que se pida. Reporte completo entregado al centro de control por mensaje. Lo que sí
+correspondía anotar acá, porque es la fuente de verdad:
+
+**1. `PriceItem` se decidió simplificar, y no quedó escrito.** `docs/SPRINT2_PRECIOS.md`
+diseñó una entidad JPA persistida (`slug`/`tipo`/`setup`/`mensual`) con TTL para el catálogo
+de precios. Lo que existe en `PricingClient.java` es más simple: un caché en memoria
+(`volatile PricingCatalog cache` + `Instant cachedAt`), sin entidad ni TTL explícito — sirve
+el DTO del Core tal cual. Cumple el objetivo (nunca inventa un precio si el Core no
+responde), pero es una decisión de diseño distinta a la planificada y nadie dejó dicho por
+qué se simplificó. **Se anota ahora, sin fecha exacta de cuándo se decidió:** el caché en
+memoria alcanza porque el Core ya calcula y cachea el catálogo; una segunda capa persistida
+en este servicio habría sido redundante sin agregar nada que el `DoD` pidiera.
+
+**2. El contrato de leads se invirtió, y `HOJA_DE_RUTA.md`/`TASKLIST.md` no se actualizaron.**
+Lo planificado originalmente: el formulario público de `webiados.com` postea a este
+servicio. Lo que se construyó: el formulario postea al **Core**, y este servicio solo **lee**
+leads (`LeadClient`, `GET /api/admin/leads`) para convertirlos en cotización
+(`docs/SPRINT3_LEADS.md`). Es el diseño correcto — el Core ya es dueño del CRM de leads en
+todo el ecosistema, duplicar el punto de entrada habría sido el error — pero el giro no
+quedó registrado donde alguien planificando Sprint 3 lo vería primero.
+
+**Por qué se anota como bug de documentación y no se corrige silenciosamente:** el objetivo
+de este ejercicio, según Felipe, no es que cada modelo reescriba sus propios documentos —
+es que quede un registro de qué se decidió y por qué, para que nadie construya de nuevo lo
+que el plan original pedía creyendo que sigue faltando. `TASKLIST.md` y `SIGUIENTE.md` ya
+tienen banners nuevos apuntando acá.

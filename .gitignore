@@ -26,3 +26,11 @@ build/
 # Los patrones que habia —`.env`, `.env.local`— no lo atrapaban. Este si.
 .env*
 !.env.example
+
+# Insumos de trabajo real con cotizaciones a clientes (correo real, datos de negocio).
+# Sin trackear hasta ahora por suerte, no por diseño (auditoría de documentación,
+# 2026-08-28) — un `git add .` distraído los metía al historial y de ahí no salen sin
+# reescribirlo. No se borran ni se mueven: la decisión sobre estos datos es de Felipe.
+cotizacion-*.json
+crear-cotizacion-*.sh
+ver-cotizacion.sh
