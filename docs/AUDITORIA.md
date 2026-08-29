@@ -600,3 +600,30 @@ de este ejercicio, según Felipe, no es que cada modelo reescriba sus propios do
 es que quede un registro de qué se decidió y por qué, para que nadie construya de nuevo lo
 que el plan original pedía creyendo que sigue faltando. `TASKLIST.md` y `SIGUIENTE.md` ya
 tienen banners nuevos apuntando acá.
+
+---
+
+## 8. `pricingRef` + aviso de precio (2026-08-29) — y la condición que cierra el hueco de §7
+
+`OptionRequest.precio` acepta cualquier número: no hay validación server-side contra el
+catálogo del Core (`docs/guias/cotizaciones-precios-del-core.md`). Se agregó
+`QuoteOption.pricingRef` (nullable, `V5__add_pricing_ref_to_option.sql`) — el slug/nombre
+del ítem del catálogo del que salió la opción, lo llena el panel al elegir del catálogo,
+nunca a mano — y `PricingWarningService`: si `pricingRef` viene, compara `precio`/
+`precioMensual` contra el catálogo **fresco** en cada lectura y avisa en
+`QuoteAdminDetail.warnings` (`List<OptionWarning>`, con `optionId` — el título de una
+opción no es único dentro de una cotización, así que el destino del aviso viaja como dato,
+no se deduce del texto). **No bloquea**: sin `pricingRef` (opción armada a mano, negociada,
+combinada) no se compara nada — es la mitad de los casos y es para eso que existe una
+cotización con un humano armándola.
+
+**La condición que cierra el hueco del plan sin pie (Navautos, §5.quater, y la propuesta
+del Kit Agenda que se está construyendo esta semana):** hoy la disciplina de no publicar
+un monto del plan sin pie antes de que el Core lo exponga (`EXPONER_PLAN_SIN_PIE`) depende
+de que alguien se acuerde — nada del sistema lo impide. **El día que ese ítem entre al
+catálogo del Core con su propio slug**, cualquier opción que use `pricingRef` para ese
+ítem queda cubierta por el mismo mecanismo: si alguien la crea antes de tiempo con un
+monto que no calza (porque el catálogo real todavía no lo trae, o lo trae distinto), el
+aviso lo va a mostrar. **No es un candado — sigue sin bloquear — pero dejó de ser silencio
+total.** Una opción armada sin `pricingRef` (a mano, adelantándose al catálogo) sigue sin
+ninguna protección: eso sigue siendo disciplina, no mecanismo.
