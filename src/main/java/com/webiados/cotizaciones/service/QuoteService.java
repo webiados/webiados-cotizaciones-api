@@ -89,7 +89,8 @@ public class QuoteService {
                 req.precio(), req.precioMensual(),
                 req.currency() != null ? req.currency() : "CLP",
                 req.recomendado(),
-                req.features()
+                req.features(),
+                req.pricingRef()
         );
     }
 
@@ -196,7 +197,7 @@ public class QuoteService {
                 .findFirst()
                 .orElseThrow(() -> new NoSuchElementException("Opción no encontrada"));
         option.update(req.titulo(), req.descripcion(), req.precio(), req.precioMensual(),
-                req.currency(), req.recomendado(), req.features());
+                req.currency(), req.recomendado(), req.features(), req.pricingRef());
         var history = selectionRepo.findByQuoteIdOrderByCreatedAtAsc(quoteId);
         return mapper.toDetail(quote, history, Instant.now());
     }

@@ -1,5 +1,7 @@
 package com.webiados.cotizaciones.service;
 
+import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -66,5 +68,10 @@ public final class Formatos {
             }
         }
         return sb.toString();
+    }
+
+    /** Monto en pesos, sin decimales, con separador de miles chileno: {@code 890000 → "$890.000"}. */
+    public static String moneda(BigDecimal monto) {
+        return "$" + NumberFormat.getIntegerInstance(ES_CL).format(monto);
     }
 }

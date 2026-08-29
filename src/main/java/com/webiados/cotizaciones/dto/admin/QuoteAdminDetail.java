@@ -27,6 +27,12 @@ public record QuoteAdminDetail(
         Instant rejectedAt,
         int ivaPct,
         List<OptionClientView> options,
-        List<SelectionHistoryEntry> history
+        List<SelectionHistoryEntry> history,
+        /**
+         * Avisos no bloqueantes: opciones cuyo precio ya no calza con el catálogo del Core hoy.
+         * Solo se generan para opciones con {@code pricingRef} — nunca para una armada a mano.
+         * Vacío no significa "todo calza": significa "nada que comparar, o comparó y calzó".
+         */
+        List<String> warnings
 ) {
 }

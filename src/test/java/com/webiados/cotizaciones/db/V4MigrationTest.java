@@ -69,7 +69,8 @@ class V4MigrationTest {
             var result = flywayFor(ds).migrate();
 
             assertThat(result.success).isTrue();
-            assertThat(result.migrationsExecuted).isEqualTo(4);
+            // V5 agregó pricing_ref a quote_option (2026-08-29): sube de 4 a 5.
+            assertThat(result.migrationsExecuted).isEqualTo(5);
         }
 
         @Test

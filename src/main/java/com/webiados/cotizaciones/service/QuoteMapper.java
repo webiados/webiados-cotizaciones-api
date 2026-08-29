@@ -18,6 +18,12 @@ import java.util.stream.Collectors;
 @Component
 public class QuoteMapper {
 
+    private final PricingWarningService pricingWarnings;
+
+    public QuoteMapper(PricingWarningService pricingWarnings) {
+        this.pricingWarnings = pricingWarnings;
+    }
+
     public QuoteClientView toClientView(Quote quote, Instant now) {
         var options = quote.getOptions().stream().map(o -> toOptionView(quote, o)).toList();
         return new QuoteClientView(
@@ -84,7 +90,8 @@ public class QuoteMapper {
                 quote.getRejectedAt(),
                 quote.getIvaPct(),
                 options,
-                historyEntries
+                historyEntries,
+                pricingWarnings.check(quote.getOptions())
         );
     }
 

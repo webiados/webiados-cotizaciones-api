@@ -70,6 +70,9 @@ class QuoteServiceIT {
     @MockBean
     LeadClient leadClient;
 
+    @MockBean
+    PricingClient pricingClient;
+
     @Autowired
     LeadService leadService;
 
@@ -78,9 +81,13 @@ class QuoteServiceIT {
     }
 
     private static OptionRequest opcion(String titulo, long precio, Long mensual) {
+        return opcion(titulo, precio, mensual, null);
+    }
+
+    private static OptionRequest opcion(String titulo, long precio, Long mensual, String pricingRef) {
         return new OptionRequest(titulo, "descripción", BigDecimal.valueOf(precio),
                 mensual == null ? null : BigDecimal.valueOf(mensual),
-                "CLP", false, List.of("feature"));
+                "CLP", false, List.of("feature"), pricingRef);
     }
 
     private static CreateQuoteRequest cotizacion(String email) {
@@ -225,6 +232,37 @@ class QuoteServiceIT {
         assertThat(detalle.options()).hasSize(4);
         assertThat(detalle.options().get(3).titulo()).isEqualTo("Opción D");
         assertThat(detalle.codigo()).isEqualTo(creada.codigo());
+    }
+
+    @Test
+    @DisplayName("una opción con pricingRef que no calza con el catálogo avisa, sin bloquear")
+    void avisaCuandoElPrecioNoCalzaConElCatalogo() {
+        when(pricingClient.get()).thenReturn(new com.webiados.cotizaciones.dto.pricing.PricingCatalog(
+                "CLP", false, BigDecimal.valueOf(0.19), null, "2026-08-29",
+                List.of(), null, null,
+                List.of(new com.webiados.cotizaciones.dto.pricing.ItemPrecio(
+                        "Tienda", null, null, BigDecimal.valueOf(890000), BigDecimal.valueOf(49000),
+                        null, null, null)),
+                List.of(), List.of(), List.of(), List.of()));
+        var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
+
+        var detalle = quoteService.addOption(creada.id(),
+                opcion("Kit Tienda", 850000, 49000L, "Tienda"));
+
+        assertThat(detalle.warnings()).hasSize(1);
+        assertThat(detalle.warnings().get(0))
+                .as("no basta con avisar que algo no calza: hay que decir qué dice el catálogo hoy")
+                .contains("Kit Tienda").contains("$890.000").contains("$850.000");
+    }
+
+    @Test
+    @DisplayName("una opción sin pricingRef nunca genera un aviso, aunque el precio sea cualquiera")
+    void opcionArmadaAManoNuncaAvisa() {
+        var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
+
+        var detalle = quoteService.addOption(creada.id(), opcion("Opción negociada", 12345, null));
+
+        assertThat(detalle.warnings()).isEmpty();
     }
 
     @Test

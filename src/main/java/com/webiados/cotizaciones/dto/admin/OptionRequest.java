@@ -13,6 +13,11 @@ import java.util.List;
  *
  * @param precio        pago único de instalación / desarrollo
  * @param precioMensual mensualidad recurrente, o {@code null} si la opción no tiene
+ * @param pricingRef    slug/nombre del ítem del catálogo del Core del que salió el precio, o
+ *                      {@code null} si la opción se armó a mano (combinada, negociada, a
+ *                      medida). Lo llena el panel al elegir del catálogo, no se teclea — sirve
+ *                      solo para el aviso no bloqueante de {@code PricingWarningService} cuando
+ *                      el precio guardado deja de calzar con lo que el Core publica hoy.
  */
 public record OptionRequest(
         @NotBlank String titulo,
@@ -21,6 +26,7 @@ public record OptionRequest(
         @PositiveOrZero BigDecimal precioMensual,
         String currency,
         boolean recomendado,
-        List<String> features
+        List<String> features,
+        String pricingRef
 ) {
 }

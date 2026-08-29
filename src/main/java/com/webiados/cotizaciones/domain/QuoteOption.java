@@ -59,12 +59,29 @@ public class QuoteOption {
     @Column(name = "feature", length = 500, nullable = false)
     private List<String> features = new ArrayList<>();
 
+    /**
+     * Slug o nombre del ítem del catálogo del Core del que salió esta opción — {@code null} si
+     * se armó a mano (combinada, negociada, a medida). Lo llena <strong>solo</strong> el panel
+     * al elegir del catálogo; nunca se teclea. Sirve para el aviso de {@link PricingWarningService}
+     * cuando el precio guardado ya no calza con lo que el Core publica hoy — no es una FK ni se
+     * valida acá: si no calza con nada, es solo un aviso, no un error.
+     */
+    @Column(name = "pricing_ref")
+    private String pricingRef;
+
     protected QuoteOption() {
     }
 
     public QuoteOption(UUID id, int orderIndex, String titulo, String descripcion,
                        BigDecimal precio, BigDecimal precioMensual, String currency,
                        boolean recomendado, List<String> features) {
+        this(id, orderIndex, titulo, descripcion, precio, precioMensual, currency, recomendado,
+                features, null);
+    }
+
+    public QuoteOption(UUID id, int orderIndex, String titulo, String descripcion,
+                       BigDecimal precio, BigDecimal precioMensual, String currency,
+                       boolean recomendado, List<String> features, String pricingRef) {
         this.id = id;
         this.orderIndex = orderIndex;
         this.titulo = titulo;
@@ -74,6 +91,7 @@ public class QuoteOption {
         this.currency = currency != null ? currency : "CLP";
         this.recomendado = recomendado;
         this.features = features != null ? new ArrayList<>(features) : new ArrayList<>();
+        this.pricingRef = pricingRef;
     }
 
     public UUID getId() {
@@ -124,9 +142,13 @@ public class QuoteOption {
         return features;
     }
 
+    public String getPricingRef() {
+        return pricingRef;
+    }
+
     public void update(String titulo, String descripcion, BigDecimal precio,
                        BigDecimal precioMensual, String currency, boolean recomendado,
-                       List<String> features) {
+                       List<String> features, String pricingRef) {
         this.titulo = titulo;
         this.descripcion = descripcion;
         this.precio = precio;
@@ -135,5 +157,6 @@ public class QuoteOption {
         this.recomendado = recomendado;
         this.features.clear();
         if (features != null) this.features.addAll(features);
+        this.pricingRef = pricingRef;
     }
 }
