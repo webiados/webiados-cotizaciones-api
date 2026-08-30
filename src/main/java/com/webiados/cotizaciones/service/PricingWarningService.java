@@ -28,11 +28,22 @@ import java.util.function.Supplier;
  * FK al catálogo, así que no hay "el" ítem contra el que comparar salvo que el panel lo haya
  * dejado dicho. Por eso esto es un aviso, no una validación — y por eso, si el Core no responde,
  * calla en vez de romper la lectura de una cotización que no tiene nada que ver con esto.
+ *
+ * <p><strong>Plan sin pie:</strong> la segunda forma de pagar el mismo kit (misma plata del
+ * primer año, en cuotas desde el primer mes, sin instalación al firmar) es una {@code
+ * QuoteOption} aparte con el mismo slug de kit, pero con el sufijo {@value #SUFIJO_SIN_PIE} en
+ * {@code pricingRef} — sin eso, un {@code precioMensual} del plan sin pie se compararía contra
+ * el mensual normal del kit y avisaría un falso desajuste. Con el sufijo, se compara la
+ * mensualidad contra {@code item.planSinPie().mensual()} y la instalación contra cero (el plan
+ * sin pie no lleva instalación al firmar, por diseño — no es que la opción la olvidó).
  */
 @Service
 public class PricingWarningService {
 
     private static final Logger log = LoggerFactory.getLogger(PricingWarningService.class);
+
+    /** Sufijo de {@code pricingRef} que marca una opción como plan sin pie del kit base. */
+    static final String SUFIJO_SIN_PIE = ":sin-pie";
 
     private final Supplier<PricingCatalog> pricing;
 
@@ -68,7 +79,10 @@ public class PricingWarningService {
             if (ref == null || ref.isBlank()) {
                 continue;
             }
-            ItemPrecio item = buscar(catalogo, ref);
+            boolean esSinPie = ref.endsWith(SUFIJO_SIN_PIE);
+            String slug = esSinPie ? ref.substring(0, ref.length() - SUFIJO_SIN_PIE.length()) : ref;
+
+            ItemPrecio item = buscar(catalogo, slug);
             if (item == null) {
                 warnings.add(new OptionWarning(option.getId(),
                         "«%s»: no se encontró «%s» en el catálogo actual — puede que haya "
@@ -76,8 +90,24 @@ public class PricingWarningService {
                                 + "cambiado de nombre o se haya retirado."));
                 continue;
             }
-            comparar(option, "de instalación", item.setup(), option.getPrecio(), warnings);
-            comparar(option, "mensuales", item.mensual(), option.getPrecioMensual(), warnings);
+
+            if (!esSinPie) {
+                comparar(option, "de instalación", item.setup(), option.getPrecio(), warnings);
+                comparar(option, "mensuales", item.mensual(), option.getPrecioMensual(), warnings);
+                continue;
+            }
+
+            if (item.planSinPie() == null) {
+                warnings.add(new OptionWarning(option.getId(),
+                        "«%s»: «%s» no tiene plan sin pie publicado en el catálogo todavía."
+                                .formatted(option.getTitulo(), slug)));
+                continue;
+            }
+            // El plan sin pie no lleva instalación al firmar: el valor correcto siempre es cero.
+            comparar(option, "de instalación (el plan sin pie no lleva instalación al firmar)",
+                    BigDecimal.ZERO, option.getPrecio(), warnings);
+            comparar(option, "mensuales del plan sin pie",
+                    item.planSinPie().mensual(), option.getPrecioMensual(), warnings);
         }
         return warnings;
     }

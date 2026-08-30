@@ -242,7 +242,7 @@ class QuoteServiceIT {
                 List.of(), null, null,
                 List.of(new com.webiados.cotizaciones.dto.pricing.ItemPrecio(
                         "Tienda", null, null, BigDecimal.valueOf(890000), BigDecimal.valueOf(49000),
-                        null, null, null)),
+                        null, null, null, null)),
                 List.of(), List.of(), List.of(), List.of()));
         var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
 

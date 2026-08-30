@@ -3,6 +3,7 @@ package com.webiados.cotizaciones.service;
 import com.webiados.cotizaciones.domain.QuoteOption;
 import com.webiados.cotizaciones.dto.admin.OptionWarning;
 import com.webiados.cotizaciones.dto.pricing.ItemPrecio;
+import com.webiados.cotizaciones.dto.pricing.PlanSinPie;
 import com.webiados.cotizaciones.dto.pricing.PricingCatalog;
 import org.junit.jupiter.api.Test;
 
@@ -24,14 +25,22 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PricingWarningServiceTest {
 
+    private static final ItemPrecio KIT_TIENDA_SIN_PLAN_SIN_PIE = new ItemPrecio(
+            "Tienda", null, null, BigDecimal.valueOf(890000), BigDecimal.valueOf(49000),
+            null, null, null, null);
+
+    private static final ItemPrecio KIT_AGENDA_CON_PLAN_SIN_PIE = new ItemPrecio(
+            "Agenda", null, null, BigDecimal.valueOf(790000), BigDecimal.valueOf(45000),
+            null, null, null,
+            new PlanSinPie(BigDecimal.valueOf(111000), 12, null));
+
     private static final PricingCatalog CATALOGO = new PricingCatalog(
             "CLP", false, new BigDecimal("0.19"), null, "2026-08-29",
             List.of(),
             null, null,
-            List.of(new ItemPrecio("Tienda", null, null,
-                    BigDecimal.valueOf(890000), BigDecimal.valueOf(49000), null, null, null)),
+            List.of(KIT_TIENDA_SIN_PLAN_SIN_PIE, KIT_AGENDA_CON_PLAN_SIN_PIE),
             List.of(new ItemPrecio(null, "agenda", "Módulo de reservas",
-                    BigDecimal.valueOf(250000), BigDecimal.valueOf(15000), null, null, null)),
+                    BigDecimal.valueOf(250000), BigDecimal.valueOf(15000), null, null, null, null)),
             List.of(),
             List.of(),
             List.of()
@@ -84,7 +93,7 @@ class PricingWarningServiceTest {
         assertThat(warnings).hasSize(1);
         assertThat(warnings.get(0).optionId()).isEqualTo(opcion.getId());
         assertThat(warnings.get(0).message()).contains("Kit Tienda")
-                .contains("$49.000").contains("$45.000");
+                .contains("$45.000").contains("$49.000");
     }
 
     @Test
@@ -123,5 +132,54 @@ class PricingWarningServiceTest {
         var warnings = service.check(opciones);
 
         assertThat(warnings).isEmpty();
+    }
+
+    // --- Plan sin pie: la misma opción, la segunda forma de pagarla ---
+
+    @Test
+    void pricingRef_con_sufijo_sin_pie_compara_contra_el_plan_sin_pie_no_contra_el_normal() {
+        var opcion = opcion("Kit Agenda — sin pie", 0, 111000L, "Agenda:sin-pie");
+
+        var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
+
+        assertThat(warnings)
+                .as("111.000 es el plan sin pie de Agenda, no debe compararse contra el 45.000 normal")
+                .isEmpty();
+    }
+
+    @Test
+    void plan_sin_pie_con_mensual_distinto_avisa() {
+        var opcion = opcion("Kit Agenda — sin pie", 0, 110000L, "Agenda:sin-pie");
+
+        var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
+
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).message())
+                .contains("Kit Agenda — sin pie").contains("$111.000").contains("$110.000");
+    }
+
+    @Test
+    void plan_sin_pie_con_instalacion_distinta_de_cero_avisa() {
+        var opcion = opcion("Kit Agenda — sin pie", 50000, 111000L, "Agenda:sin-pie");
+
+        var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
+
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).message())
+                .as("el plan sin pie no lleva instalación al firmar; $0 es el valor correcto")
+                .contains("Kit Agenda — sin pie").contains("$0").contains("$50.000");
+    }
+
+    @Test
+    void pricingRef_sin_pie_para_un_kit_sin_plan_sin_pie_publicado_avisa_sin_reventar() {
+        var opcion = opcion("Kit Tienda — sin pie", 0, 124000L, "Tienda:sin-pie");
+
+        var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
+
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).optionId()).isEqualTo(opcion.getId());
+        assertThat(warnings.get(0).message())
+                .contains("Kit Tienda — sin pie")
+                .contains("no tiene plan sin pie publicado");
     }
 }
