@@ -229,3 +229,30 @@ veces el 29 de agosto y las veces que una sesión frenó, tenía razón.
 
 **Lo que cambia es que ya no hace falta esperar una confirmación de Felipe para lo que sí se
 sostiene.**
+
+---
+
+## 🚫 Nada de emojis en lo que ve un cliente *(2026-08-30, Felipe)*
+
+> *"No quiero emojis en la página web, necesito que agregues íconos. Odio los emojis en la página
+> web."*
+
+**En cualquier interfaz que vea un cliente o un prospecto —sitio público, tienda, panel, correos,
+comprobantes— los emojis se reemplazan por íconos.**
+
+| ❌ | ✅ |
+|---|---|
+| `📍 Melipilla` | Un ícono de ubicación, del set del proyecto |
+| `🔥 Ofertas` | Un ícono, o nada — **muchas veces el emoji está tapando que el texto no basta** |
+| `🚧 En construcción` | Una franja con su propio estilo, sin pictograma prestado |
+
+**Por qué, más allá del gusto:** un emoji **lo dibuja el sistema operativo de quien mira**, así que
+se ve distinto en cada teléfono y no respeta ni la paleta ni el peso tipográfico del sitio. **Un
+ícono es parte del diseño; un emoji es un invitado que llega vestido de otra cosa.**
+
+**Dónde SÍ se pueden usar:** documentación interna, mensajes entre sesiones, reportes, este archivo.
+**La regla es sobre lo que ve un cliente, no sobre cómo trabajamos entre nosotros.**
+
+⚠️ **Y esto se puede verificar solo.** Es una línea de bash sobre el HTML servido, del mismo tipo que
+los chequeos que ya existen — **conviene que rompa el build en vez de depender de que alguien
+recuerde.**
