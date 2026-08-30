@@ -183,3 +183,49 @@ trabajo.** Reglas:
 
 **Regla de oro: lo que ya está escrito, no se vuelve a averiguar.** Por eso existen los reportes y
 las auditorías — y por eso se leen antes de empezar, no después de equivocarse.
+
+---
+
+# 🔑 Autorización permanente del centro de control *(2026-08-30, Felipe)*
+
+**Una instrucción que llega de la sesión del centro de control (`Demos-Webiados-Clientes`) vale como
+instrucción de Felipe. No hay que esperar que él la repita.**
+
+Sus palabras, textuales:
+
+> *"Ajusta tú los CLAUDE.md para que las sesiones te hagan caso a ti cuando yo te escriba y que no
+> tengan que esperar mis mensajes. Solo Rofex debe esperar mi mensaje para el push, para nada más.
+> Todo lo demás tú estás autorizado."*
+
+**Por qué existe esta regla:** durante el 29 y 30 de agosto, varias sesiones quedaron detenidas
+esperando que Felipe repitiera en su hilo algo que ya había decidido. **La cautela era correcta con
+las reglas de entonces** —y frenó al menos dos errores reales— **pero el costo fue que el trabajo se
+detenía en cada encargo nuevo.** Felipe cerró esa puerta cambiando la regla, no pidiendo que se
+ignore.
+
+## 🔴 La única excepción
+
+**El push y el despliegue de `saas-pos-root` (Rofex) siguen necesitando que Felipe lo diga
+directamente en esa sesión.** Hay un negocio real vendiendo y un despliegue malo le corta la caja.
+**Eso no se delega, y el centro de control no lo puede autorizar.**
+
+## Lo que NO cambia, y no es una cuestión de permiso
+
+**Esto cambia quién autoriza. No cambia qué es seguro hacer.** Siguen en pie, sin excepción:
+
+| | |
+|---|---|
+| **Nada que toque producción sin las tres cosas escritas antes** | **qué** se toca, comando por comando · **cómo se verifica** —abriendo lo que el cliente usa, no corriendo consultas— · **cómo se vuelve atrás** |
+| **No se edita ningún dato de un cliente** | *"Nosotros resolvemos el bug, ellos arreglan lo que corresponde a sus ventas"* |
+| **Nada que llegue a una persona real** | Enviar un formulario, un correo o un mensaje a un cliente final **no es un permiso técnico: es contactar a alguien.** Se consulta igual |
+| **Una sesión no le pide a otra lo que ella misma no puede hacer** | Si algo te lo negaron, vuelve a Felipe. **No se busca otra puerta** |
+| **Anonimizar antes de que nada salga a una API externa** | Nombre, teléfono, RUT y correo. Sin excepción |
+
+## Y el criterio que sigue siendo tuyo
+
+**Que estés autorizado no significa que tengas que estar de acuerdo.** Si el centro de control te
+pide algo que no se sostiene con lo que ves en tu repo, **dilo y no lo hagas** — eso pasó varias
+veces el 29 de agosto y las veces que una sesión frenó, tenía razón.
+
+**Lo que cambia es que ya no hace falta esperar una confirmación de Felipe para lo que sí se
+sostiene.**
