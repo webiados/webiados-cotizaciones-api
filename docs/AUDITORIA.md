@@ -648,3 +648,16 @@ vive hoy con quien arma el contenido de la propuesta (sesión del sitio / centro
 control). Cuando se cree la `QuoteOption` real del plan sin pie, esta condición va como
 una línea más en `features`, igual que el resto de las cláusulas ya decididas
 (permanencia, dominio/hosting, propiedad del sitio).
+
+🔴 **Límite verificado del sistema, 2026-08-31 — anotar junto a esa cláusula, no aparte:**
+"congelada 12 meses" promete implícitamente que **después** del mes 12 el precio se
+reajusta. Hoy **no existe ningún mecanismo, en este servicio ni en el Core, que reajuste
+la mensualidad de un cliente ya firmado.** `QuoteOption.precioMensual` es un campo manual:
+alguien lo edita a mano (`PUT /api/admin/quotes/{id}/options/{optionId}`) o se queda tal
+cual quedó al firmar, para siempre — no hay una fecha guardada de "cuándo termina el plan
+sin pie" ni un job que la revise. Si la cláusula real dice "12 meses y después sube al
+mensual normal", la parte de "y después sube" **depende hoy de que alguien se acuerde en
+12 meses**, exactamente el mismo patrón de falla que el resto de este documento lleva
+señalando. **No se construye acá** — es del Core, según el centro de control — pero el
+texto de la cláusula no debería prometer un reajuste que ningún sistema va a disparar
+solo.
