@@ -627,3 +627,24 @@ monto que no calza (porque el catálogo real todavía no lo trae, o lo trae dist
 aviso lo va a mostrar. **No es un candado — sigue sin bloquear — pero dejó de ser silencio
 total.** Una opción armada sin `pricingRef` (a mano, adelantándose al catálogo) sigue sin
 ninguna protección: eso sigue siendo disciplina, no mecanismo.
+
+**Actualización (2026-08-30/31):** `EXPONER_PLAN_SIN_PIE` ya está en `true` en el Core,
+verificado en vivo contra `GET /api/v1/pricing` (los 5 kits, 12 meses, montos definitivos
+de Felipe). `ItemPrecio` no tenía campo para `planSinPie` — el dato llegaba y Jackson lo
+descartaba en silencio (`@JsonIgnoreProperties(ignoreUnknown = true)`), así que este
+servicio no podía representarlo. Se agregó `PlanSinPie` + convención `pricingRef` con
+sufijo `:sin-pie` (ej. `"Agenda:sin-pie"`), que compara la mensualidad contra el plan sin
+pie del catálogo y la instalación contra cero, en vez de contra los valores normales del
+kit — sin esto, la primera cotización real con las dos formas de pago habría disparado un
+aviso falso ("el precio no calza") sobre un precio que estaba perfectamente bien.
+Verificado en producción con una cotización de prueba real (`4fa78vdc8h`): las dos
+opciones del mismo kit, `warnings: []`.
+
+**Término pendiente de anotar en la cotización real cuando exista:** Felipe confirmó que
+**la cuota del plan sin pie queda congelada los 12 meses** — no sube aunque el precio de
+lista del kit suba mientras el cliente está pagando. Este repo no tiene un lugar propio
+donde guardar cláusulas de propuestas antes de que exista una cotización real; el texto
+vive hoy con quien arma el contenido de la propuesta (sesión del sitio / centro de
+control). Cuando se cree la `QuoteOption` real del plan sin pie, esta condición va como
+una línea más en `features`, igual que el resto de las cláusulas ya decididas
+(permanencia, dominio/hosting, propiedad del sitio).
