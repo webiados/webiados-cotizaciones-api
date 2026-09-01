@@ -769,8 +769,14 @@ estarlo.
 `EmailService.notifySelection` únicamente logueaba en el `catch`. "Sin errores en el log" no es
 prueba de que se mandó — un envío que falla sin lanzar excepción se vería idéntico. Ahora también
 registra el éxito, con el código de la cotización (`EmailServiceNotifySelectionTest`, con un
-`ListAppender` de Logback capturando el log real). Sigue sin poder confirmarse por este medio si
-la notificación llegó al buzón de `NOTIFY_TO` — eso lo revisa Felipe directamente.
+`ListAppender` de Logback capturando el log real).
+
+**✅ Verificado, 2026-09-01 — llegó de verdad.** Felipe confirmó en su bandeja (`contacto@webiados.com`)
+los dos correos reales de la selección de prueba (`xk2skc56nu`, 9:29): *"✅ Cotización xk2skc56nu"*
+(selección inicial) y *"⬆️ Upgrade — Cotización xk2skc56nu"* (cambio a plan superior). No es solo
+"consistente con que funcionó" — es la confirmación en la bandeja, con fecha. **Y que llegaran los
+dos, no uno, importa:** el segundo correo distingue "eligió por primera vez" de "cambió su
+elección" — es el que le avisa a Felipe que un cliente subió de plan, no solo que eligió algo.
 
 **3 · 🟢 Borrada — una cotización de prueba interna con una broma sobre un socio real, en producción.**
 `856skn73j5` / "NicoGAY", `nicoGay@webiados.com`, notas *"el es gaysh"*. No existe endpoint
