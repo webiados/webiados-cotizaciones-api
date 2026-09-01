@@ -761,6 +761,9 @@ poner la clave), y un `AccessDeniedException` cuando un token de cliente pega a 
 producción real antes y después del fix, con `curl`. 106/106 tests.
 No se tocó el frontend: un 403 acá debería hacer que la página pida la clave de nuevo, no que
 muestre un error — eso es de `webiados/webiados`, coordinado por el centro de control.
+**El backend responde correctamente; la pantalla todavía no reacciona bien.** Este arreglo es
+necesario y no suficiente — si se cierra solo esta mitad, el bug queda dado por resuelto sin
+estarlo.
 
 **2 · 🟢 Corregido — la notificación interna solo se registraba cuando fallaba.**
 `EmailService.notifySelection` únicamente logueaba en el `catch`. "Sin errores en el log" no es
