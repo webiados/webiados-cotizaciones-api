@@ -759,11 +759,13 @@ poner la clave), y un `AccessDeniedException` cuando un token de cliente pega a 
 `@PreAuthorize` de admin — los dos salían como 500 en vez de 403. Se agregó un handler por
 **tipo** de excepción, no por caso puntual, para no dejar una tercera. Los dos, confirmados en
 producción real antes y después del fix, con `curl`. 106/106 tests.
-No se tocó el frontend: un 403 acá debería hacer que la página pida la clave de nuevo, no que
-muestre un error — eso es de `webiados/webiados`, coordinado por el centro de control.
-**El backend responde correctamente; la pantalla todavía no reacciona bien.** Este arreglo es
-necesario y no suficiente — si se cierra solo esta mitad, el bug queda dado por resuelto sin
-estarlo.
+No se tocó el frontend, y no hizo falta: **✅ verificado, 2026-09-01 — cerrado de punta a punta.**
+La sesión del sitio reprodujo el 403 en vivo contra `webiados.com` con los códigos de prueba de
+acá, capturando la red: la pantalla ya vuelve a mostrar el formulario de clave, no un error
+genérico. No se tocó nada del lado de ellos porque ya funcionaba bien — la nota anterior
+("necesario y no suficiente") era correcta con lo que se sabía en el momento, quedó vencida en
+horas. Se deja este historial a propósito, para que quede visible cómo se cerró, no solo que
+está cerrado.
 
 **2 · 🟢 Corregido — la notificación interna solo se registraba cuando fallaba.**
 `EmailService.notifySelection` únicamente logueaba en el `catch`. "Sin errores en el log" no es
