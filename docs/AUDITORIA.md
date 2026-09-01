@@ -737,3 +737,41 @@ al seleccionarse colapsa a un único cobro real — misma cardinalidad que un te
 Cargar una fecha antes de que el servicio arranque dejaría un cobro agendado para algo que
 todavía no existe — peor que no cargarlo. Navautos hoy no puede publicarse: falta el descuento
 del proveedor. Cuando se publique, el campo se llena allá, no acá.
+
+---
+
+## 11. El camino del cliente, recorrido de verdad por primera vez (2026-09-01)
+
+**Ninguna cotización se había recorrido nunca como cliente real.** Verificado sobre las 16
+cotizaciones que existen: los dos únicos `SELECTED` son un backfill histórico (Macarena Larraín,
+`notes` dice *"Cotización original del 2026-07-24 (PDF)"*, reconstruida por script) y una prueba
+interna vieja (`nicoGay@webiados.com`, ya borrada — ver abajo). Los `SENT` reales se entregaron a
+mano y se marcaron con `mark-sent`. `/send` solo se usó dos veces, las dos a un correo de prueba.
+
+Recorriendo el camino en el navegador contra producción (con la cotización real de Estética
+Duval, solo lectura, sin elegir nada por ella) aparecieron tres cosas:
+
+**1 · 🟢 Corregido — el mismo bug del `DELETE`, en dos lugares más del mismo archivo.**
+`ApiExceptionHandler.handleGeneric` seguía atrapando excepciones que ya traían su propio status:
+un `ResponseStatusException` lanzado a mano en `ClientQuoteController` cuando el código del token
+no coincide con el de la ruta (navegar entre dos cotizaciones en la misma pestaña sin volver a
+poner la clave), y un `AccessDeniedException` cuando un token de cliente pega a un endpoint
+`@PreAuthorize` de admin — los dos salían como 500 en vez de 403. Se agregó un handler por
+**tipo** de excepción, no por caso puntual, para no dejar una tercera. Los dos, confirmados en
+producción real antes y después del fix, con `curl`. 106/106 tests.
+No se tocó el frontend: un 403 acá debería hacer que la página pida la clave de nuevo, no que
+muestre un error — eso es de `webiados/webiados`, coordinado por el centro de control.
+
+**2 · 🟢 Corregido — la notificación interna solo se registraba cuando fallaba.**
+`EmailService.notifySelection` únicamente logueaba en el `catch`. "Sin errores en el log" no es
+prueba de que se mandó — un envío que falla sin lanzar excepción se vería idéntico. Ahora también
+registra el éxito, con el código de la cotización (`EmailServiceNotifySelectionTest`, con un
+`ListAppender` de Logback capturando el log real). Sigue sin poder confirmarse por este medio si
+la notificación llegó al buzón de `NOTIFY_TO` — eso lo revisa Felipe directamente.
+
+**3 · 🟢 Borrada — una cotización de prueba interna con una broma sobre un socio real, en producción.**
+`856skn73j5` / "NicoGAY", `nicoGay@webiados.com`, notas *"el es gaysh"*. No existe endpoint
+`DELETE /api/admin/quotes/{id}` (decisión documentada en §5.ter: no se construyó por falta de
+consumidor) — se borró con una sentencia SQL directa, en transacción, verificando el conteo antes
+de confirmar (`DELETE 1`, cascada limpia por FK `ON DELETE CASCADE` desde `V1__init.sql`),
+confirmado después con un `GET` real → `404`.

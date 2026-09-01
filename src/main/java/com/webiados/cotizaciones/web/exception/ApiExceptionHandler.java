@@ -4,10 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.NoSuchElementException;
 
@@ -58,6 +60,30 @@ public class ApiExceptionHandler {
         var detail = ProblemDetail.forStatus(HttpStatus.METHOD_NOT_ALLOWED);
         detail.setTitle("Método no soportado");
         detail.setDetail(ex.getMessage());
+        return detail;
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ProblemDetail handleResponseStatus(ResponseStatusException ex) {
+        // Mismo patrón que el 405 de arriba: sin este handler, Exception.class atrapaba
+        // cualquier ResponseStatusException lanzada a mano en un controller (ej: el 403 de
+        // ClientQuoteController cuando el código del token no coincide con el de la ruta) y la
+        // convertía en 500 — un error ya resuelto, empeorado. Se respeta el status con el que
+        // se lanzó, no se hardcodea uno.
+        var detail = ProblemDetail.forStatus(ex.getStatusCode());
+        detail.setTitle(ex.getStatusCode().toString());
+        detail.setDetail(ex.getReason());
+        return detail;
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        // Mismo patrón otra vez: un token de cliente pegándole a un endpoint @PreAuthorize de
+        // admin lanza esto durante la invocación del controller — Exception.class lo atrapaba
+        // antes de que llegara a convertirse en el 403 que ya le correspondía.
+        var detail = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+        detail.setTitle("Acceso denegado");
+        detail.setDetail("No tienes permiso para esta operación");
         return detail;
     }
 

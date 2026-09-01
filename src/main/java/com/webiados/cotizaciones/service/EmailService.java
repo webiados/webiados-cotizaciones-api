@@ -236,6 +236,11 @@ public class EmailService {
             message.setSubject(subject);
             message.setText(body);
             mailSender.send(message);
+            // Antes solo se registraba el fallo: "no hay error en el log" no es prueba de que se
+            // mandó, es prueba de que no se lanzó una excepción — y un envío que falla sin lanzar
+            // ninguna se vería exactamente igual. Con el código acá, "¿se avisó de esta?" se
+            // responde buscando, no revisando el buzón de NOTIFY_TO.
+            log.info("Notificación interna de selección enviada para cotización {}", quote.getCodigo());
         } catch (Exception ex) {
             log.error("Error enviando email de notificación para cotización {}", quote.getCodigo(), ex);
         }
