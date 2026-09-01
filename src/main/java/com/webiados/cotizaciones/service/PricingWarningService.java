@@ -108,8 +108,28 @@ public class PricingWarningService {
                     BigDecimal.ZERO, option.getPrecio(), warnings);
             comparar(option, "mensuales del plan sin pie",
                     item.planSinPie().mensual(), option.getPrecioMensual(), warnings);
+            compararMeses(option, item.planSinPie().meses(), warnings);
         }
         return warnings;
+    }
+
+    private void compararMeses(QuoteOption option, Integer mesesDelCatalogo,
+                                List<OptionWarning> warnings) {
+        if (mesesDelCatalogo == null) {
+            return; // El Core no publicó el plazo; no hay contra qué comparar.
+        }
+        Integer mesesDeLaOpcion = option.getPlanSinPieMeses();
+        if (mesesDeLaOpcion == null) {
+            warnings.add(new OptionWarning(option.getId(),
+                    "«%s»: no indica los meses del plan sin pie — el catálogo dice %d."
+                            .formatted(option.getTitulo(), mesesDelCatalogo)));
+            return;
+        }
+        if (!mesesDelCatalogo.equals(mesesDeLaOpcion)) {
+            warnings.add(new OptionWarning(option.getId(),
+                    "«%s»: el catálogo hoy dice %d meses de plan sin pie, esta opción dice %d."
+                            .formatted(option.getTitulo(), mesesDelCatalogo, mesesDeLaOpcion)));
+        }
     }
 
     private void comparar(QuoteOption option, String etiqueta, BigDecimal delCatalogo,

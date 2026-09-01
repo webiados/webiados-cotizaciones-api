@@ -47,9 +47,14 @@ class PricingWarningServiceTest {
     );
 
     private static QuoteOption opcion(String titulo, long precio, Long mensual, String pricingRef) {
+        return opcion(titulo, precio, mensual, pricingRef, null);
+    }
+
+    private static QuoteOption opcion(String titulo, long precio, Long mensual, String pricingRef,
+                                       Integer planSinPieMeses) {
         return new QuoteOption(UUID.randomUUID(), 0, titulo, "descripción",
                 BigDecimal.valueOf(precio), mensual == null ? null : BigDecimal.valueOf(mensual),
-                "CLP", false, List.of(), pricingRef);
+                "CLP", false, List.of(), pricingRef, planSinPieMeses);
     }
 
     @Test
@@ -137,19 +142,19 @@ class PricingWarningServiceTest {
     // --- Plan sin pie: la misma opción, la segunda forma de pagarla ---
 
     @Test
-    void pricingRef_con_sufijo_sin_pie_compara_contra_el_plan_sin_pie_no_contra_el_normal() {
-        var opcion = opcion("Kit Agenda — sin pie", 0, 111000L, "Agenda:sin-pie");
+    void pricingRef_con_sufijo_sin_pie_y_meses_correctos_compara_contra_el_plan_sin_pie_no_contra_el_normal() {
+        var opcion = opcion("Kit Agenda — sin pie", 0, 111000L, "Agenda:sin-pie", 12);
 
         var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
 
         assertThat(warnings)
-                .as("111.000 es el plan sin pie de Agenda, no debe compararse contra el 45.000 normal")
+                .as("111.000/12 meses es el plan sin pie de Agenda, no debe compararse contra el normal")
                 .isEmpty();
     }
 
     @Test
     void plan_sin_pie_con_mensual_distinto_avisa() {
-        var opcion = opcion("Kit Agenda — sin pie", 0, 110000L, "Agenda:sin-pie");
+        var opcion = opcion("Kit Agenda — sin pie", 0, 110000L, "Agenda:sin-pie", 12);
 
         var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
 
@@ -160,7 +165,7 @@ class PricingWarningServiceTest {
 
     @Test
     void plan_sin_pie_con_instalacion_distinta_de_cero_avisa() {
-        var opcion = opcion("Kit Agenda — sin pie", 50000, 111000L, "Agenda:sin-pie");
+        var opcion = opcion("Kit Agenda — sin pie", 50000, 111000L, "Agenda:sin-pie", 12);
 
         var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
 
@@ -172,7 +177,7 @@ class PricingWarningServiceTest {
 
     @Test
     void pricingRef_sin_pie_para_un_kit_sin_plan_sin_pie_publicado_avisa_sin_reventar() {
-        var opcion = opcion("Kit Tienda — sin pie", 0, 124000L, "Tienda:sin-pie");
+        var opcion = opcion("Kit Tienda — sin pie", 0, 124000L, "Tienda:sin-pie", 12);
 
         var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
 
@@ -181,5 +186,32 @@ class PricingWarningServiceTest {
         assertThat(warnings.get(0).message())
                 .contains("Kit Tienda — sin pie")
                 .contains("no tiene plan sin pie publicado");
+    }
+
+    @Test
+    void plan_sin_pie_sin_indicar_los_meses_avisa_en_vez_de_quedar_muda() {
+        var opcion = opcion("Kit Agenda — sin pie", 0, 111000L, "Agenda:sin-pie", null);
+
+        var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
+
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).optionId()).isEqualTo(opcion.getId());
+        assertThat(warnings.get(0).message())
+                .as("\"dura los meses que se indican en esta cotización\" sin indicarlos en ningún "
+                        + "campo es justo lo que este aviso existe para atrapar")
+                .contains("Kit Agenda — sin pie")
+                .contains("no indica los meses")
+                .contains("12");
+    }
+
+    @Test
+    void plan_sin_pie_con_meses_distintos_del_catalogo_avisa() {
+        var opcion = opcion("Kit Agenda — sin pie", 0, 111000L, "Agenda:sin-pie", 24);
+
+        var warnings = new PricingWarningService(() -> CATALOGO).check(List.of(opcion));
+
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).message())
+                .contains("Kit Agenda — sin pie").contains("12").contains("24");
     }
 }

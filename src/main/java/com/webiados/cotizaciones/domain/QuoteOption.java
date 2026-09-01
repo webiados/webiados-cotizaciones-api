@@ -69,6 +69,16 @@ public class QuoteOption {
     @Column(name = "pricing_ref")
     private String pricingRef;
 
+    /**
+     * Meses del plan sin pie de esta opción — {@code null} si la opción no es un plan sin pie.
+     * Dato, no texto: sin un campo propio, "dura los meses que se indican en esta cotización"
+     * no indica nada en ninguna parte, y nadie puede filtrar, contar ni avisar sobre un plazo
+     * que solo vive dentro de un párrafo. Se compara contra {@code item.planSinPie().meses()}
+     * del catálogo igual que el resto de los montos, con el mismo aviso no bloqueante.
+     */
+    @Column(name = "plan_sin_pie_meses")
+    private Integer planSinPieMeses;
+
     protected QuoteOption() {
     }
 
@@ -76,12 +86,20 @@ public class QuoteOption {
                        BigDecimal precio, BigDecimal precioMensual, String currency,
                        boolean recomendado, List<String> features) {
         this(id, orderIndex, titulo, descripcion, precio, precioMensual, currency, recomendado,
-                features, null);
+                features, null, null);
     }
 
     public QuoteOption(UUID id, int orderIndex, String titulo, String descripcion,
                        BigDecimal precio, BigDecimal precioMensual, String currency,
                        boolean recomendado, List<String> features, String pricingRef) {
+        this(id, orderIndex, titulo, descripcion, precio, precioMensual, currency, recomendado,
+                features, pricingRef, null);
+    }
+
+    public QuoteOption(UUID id, int orderIndex, String titulo, String descripcion,
+                       BigDecimal precio, BigDecimal precioMensual, String currency,
+                       boolean recomendado, List<String> features, String pricingRef,
+                       Integer planSinPieMeses) {
         this.id = id;
         this.orderIndex = orderIndex;
         this.titulo = titulo;
@@ -92,6 +110,7 @@ public class QuoteOption {
         this.recomendado = recomendado;
         this.features = features != null ? new ArrayList<>(features) : new ArrayList<>();
         this.pricingRef = pricingRef;
+        this.planSinPieMeses = planSinPieMeses;
     }
 
     public UUID getId() {
@@ -146,9 +165,13 @@ public class QuoteOption {
         return pricingRef;
     }
 
+    public Integer getPlanSinPieMeses() {
+        return planSinPieMeses;
+    }
+
     public void update(String titulo, String descripcion, BigDecimal precio,
                        BigDecimal precioMensual, String currency, boolean recomendado,
-                       List<String> features, String pricingRef) {
+                       List<String> features, String pricingRef, Integer planSinPieMeses) {
         this.titulo = titulo;
         this.descripcion = descripcion;
         this.precio = precio;
@@ -158,5 +181,6 @@ public class QuoteOption {
         this.features.clear();
         if (features != null) this.features.addAll(features);
         this.pricingRef = pricingRef;
+        this.planSinPieMeses = planSinPieMeses;
     }
 }

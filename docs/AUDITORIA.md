@@ -664,3 +664,54 @@ documento lleva señalando. **No se construye acá** — es del Core, según el 
 control — pero el
 texto de la cláusula no debería prometer un reajuste que ningún sistema va a disparar
 solo.
+
+---
+
+## 9. Los 12 meses del plan sin pie ya son dato, no solo texto (2026-09-01)
+
+Se agregó `QuoteOption.planSinPieMeses` (`Integer`, nullable, `V6__add_plan_sin_pie_meses_to_option.sql`)
+y `OptionClientView.planSinPieMeses` — a propósito, **antes** de los campos de precio en el
+record, para que quien construya la pantalla no lo ponga después del número que decide. Antes,
+la única forma de decir "dura 12 meses" era un párrafo de `features`; se comprobó (cotización de
+prueba `xk2skc56nu`) que el número **12 no aparecía en ningún lugar** de la respuesta —
+"los meses que se indican en esta cotización" no indicaba nada en ninguna parte.
+
+`PricingWarningService` ahora también compara `planSinPieMeses` contra `item.planSinPie().meses()`
+del catálogo, con el mismo aviso no bloqueante: si falta, avisa "no indica los meses"; si no
+calza, avisa los dos números. 102/102 tests.
+
+**Esto no reescribe el texto de la cláusula** — ese texto lo redacta quien arma la propuesta.
+Lo que hace es dejar un lugar donde el número vive como dato, no solo dentro de un párrafo.
+
+---
+
+## 10. Dos preguntas para Felipe, encontradas comparando la cotización contra la estrategia — sin tocar nada
+
+Verificado 2026-09-01, generando cotizaciones de prueba reales y comparando texto contra texto,
+no contra memoria. **No se corrige nada de esto acá — las decide Felipe.**
+
+### 10.1 · De quién es el sitio en el plan sin pie — tres documentos, tres respuestas
+
+- **`docs/pricing.md` §9**, textual: *"Tu sitio web: Tuyo. Diseño, contenido, código, dominio."*
+  — sin excepción para el plan sin pie.
+- **`docs/estrategia/2026-08-29-setup-en-la-mensualidad.md` §3c**, textual: *"El dominio y el
+  hosting quedan en nuestra cuenta hasta el mes 12."* — solo dominio y hosting, no el sitio ni
+  el código.
+- **El texto de cláusula ya redactado** (sesión del sitio, usado en la cotización de prueba
+  `xk2skc56nu`), textual: *"El sitio y su código son de Webiados hasta que la instalación esté
+  paga completa."* — más amplio que los dos anteriores: dice que el trabajo entero es de
+  Webiados, no solo dominio y hosting.
+
+Tres documentos, tres alcances distintos del mismo término. No es que uno esté mal escrito —
+es que ninguno se escribió mirando a los otros dos. **Pendiente de que Felipe decida una
+versión única**, y de que se corrija en los tres lugares a la vez cuando la decida.
+
+### 10.2 · "Deja de pagar y sigue operando" — el caso más común, sin cubrir en ningún lado
+
+El texto de cláusula y `docs/estrategia/...md` cubren *"se cambia de proveedor"* (paga las
+cuotas que faltan) y *"el negocio cierra"* (no se cobra el saldo) — pero ninguno de los dos
+dice qué pasa si el cliente simplemente deja de pagar mientras el negocio sigue abierto, que es
+el caso más probable de los tres. En una decisión anterior, para Navautos, sí se había definido
+*"si deja de pagar la mensualidad, se da de baja el sitio"* — pero esa decisión no llegó al
+texto de cláusula general del plan sin pie. **Pendiente de que Felipe confirme si aplica igual
+acá**, y de escribirlo donde corresponda cuando lo confirme.

@@ -105,6 +105,7 @@ public class QuoteMapper {
                 opt.getOrderIndex(),
                 opt.getTitulo(),
                 opt.getDescripcion(),
+                opt.getPlanSinPieMeses(),
                 opt.getPrecio(),
                 quote.ivaSobre(opt.getPrecio()),
                 quote.totalConIva(opt.getPrecio()),

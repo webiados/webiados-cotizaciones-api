@@ -87,7 +87,7 @@ class QuoteServiceIT {
     private static OptionRequest opcion(String titulo, long precio, Long mensual, String pricingRef) {
         return new OptionRequest(titulo, "descripción", BigDecimal.valueOf(precio),
                 mensual == null ? null : BigDecimal.valueOf(mensual),
-                "CLP", false, List.of("feature"), pricingRef);
+                "CLP", false, List.of("feature"), pricingRef, null);
     }
 
     private static CreateQuoteRequest cotizacion(String email) {

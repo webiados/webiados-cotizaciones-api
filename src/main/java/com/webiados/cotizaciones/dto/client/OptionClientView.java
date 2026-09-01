@@ -13,12 +13,17 @@ import java.util.UUID;
  *
  * <p>Los campos {@code precioMensual*} son {@code null} cuando la opción no tiene
  * mensualidad.
+ *
+ * <p>{@code planSinPieMeses} va <strong>antes</strong> de los montos a propósito: si alguien ve
+ * el precio mensual y decide ahí, tiene que saber que es "durante N meses" antes de leer el
+ * número, no después de un párrafo de texto. {@code null} si la opción no es un plan sin pie.
  */
 public record OptionClientView(
         UUID id,
         int orderIndex,
         String titulo,
         String descripcion,
+        Integer planSinPieMeses,
         BigDecimal precio,
         BigDecimal precioIva,
         BigDecimal precioTotal,
