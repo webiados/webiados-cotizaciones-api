@@ -786,3 +786,45 @@ elección" — es el que le avisa a Felipe que un cliente subió de plan, no sol
 consumidor) — se borró con una sentencia SQL directa, en transacción, verificando el conteo antes
 de confirmar (`DELETE 1`, cascada limpia por FK `ON DELETE CASCADE` desde `V1__init.sql`),
 confirmado después con un `GET` real → `404`.
+
+---
+
+## 12. Recorrido completo de punta a punta, con cronómetro (2026-09-01)
+
+**Primera vez que el ciclo entero corrió de una vez, no en piezas sueltas.** Login real en
+`webiados.com/admin` → cotización nueva desde el formulario del panel → `/send` real (correo a
+mi propio correo, con autorización) → abierta como cliente → desbloqueada → elegida una opción.
+Cotización de prueba `j4eqs2qnft`, ya borrada (mismo método que NicoGAY: SQL directo en
+transacción, `DELETE 1`, confirmado con `GET` real → `404`).
+
+**Cronómetro:** ~2 min para crear (nombre, correo, 2 opciones completas) + 36 s para enviar =
+**~2 min 36 s crear + enviar**, con datos escritos por script (más rápido que tipeo humano letra
+por letra, pero comparable a copiar/pegar). El tiempo real está en redactar el texto de las
+opciones, no en pelear con el sistema — cotizar no es caro hoy.
+
+**🔴 Hallazgo real: el formulario "Nueva cotización" del panel es texto libre puro.** Sin
+selector de catálogo, sin `pricingRef`, sin el campo de meses del plan sin pie. Todo lo
+construido esta semana (`PricingWarningService`, `planSinPieMeses`) está listo en esta API y
+**nadie lo alcanza** — Felipe cotiza escribiendo números a mano y ninguna de esas protecciones
+se activa.
+
+**Dimensionado, no construido:**
+- **De qué repo es:** del panel (`webiados/webiados`, Angular), no de este servicio ni del
+  Core. Esta API ya expone todo lo necesario (`GET /api/admin/pricing` con `planSinPie`
+  incluido, `OptionRequest.pricingRef`/`planSinPieMeses`) — no falta nada de este lado.
+- **Qué haría falta:** un selector en el formulario que, al elegir un kit/addon del catálogo,
+  prellene título/precio/mensual y guarde el `pricingRef` (con el sufijo `:sin-pie` si aplica) y
+  los meses — en vez de los campos de texto libre actuales. Trabajo de UI, no de API.
+- **Qué error concreto se pierde hoy:** si Felipe escribe a mano un precio con un dígito de
+  menos, un monto de una lista de precios vieja, o el mensual del plan sin pie con el redondeo
+  equivocado (como pasó esta semana: $110.000 vs. $111.000 corregido), **nada lo avisa.** El
+  candado suave que se construyó esta semana existe y no protege nada mientras el formulario no
+  lo llene — mismo patrón que el cupón de Rofex sin llamador, el conteo de contactos de prueba,
+  y la clave del bot leyendo el proyecto equivocado: la pieza existe, nadie la conectó.
+
+**🟡 Un `422` transitorio en `GET /api/admin/pricing`, anotado con hora — no rompió nada, no se
+tocó:** ocurrió durante este recorrido, **2026-09-01 ~12:04:29 hora de Chile** (calculado desde
+el timestamp del navegador, no del servidor — la ventana de logs de Railway ya había rotado al
+momento de buscarlo). Verificado con `curl` segundos después: `200` normal. Un `422` acá sale de
+`PricingClient` cuando el Core no responde y **tampoco hay nada cacheado todavía** — se
+autocorrigió solo. Si vuelve a aparecer, esta es la primera vez registrada.
