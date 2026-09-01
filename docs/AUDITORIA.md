@@ -721,3 +721,19 @@ el caso más probable de los tres. En una decisión anterior, para Navautos, sí
 *"si deja de pagar la mensualidad, se da de baja el sitio"* — pero esa decisión no llegó al
 texto de cláusula general del plan sin pie. **Pendiente de que Felipe confirme si aplica igual
 acá**, y de escribirlo donde corresponda cuando lo confirme.
+
+### 10.3 · Fecha y estado de un cobro diferido (Navautos, plan sin pie) — cerrado sin construir nada
+
+Se evaluó agregar acá `fechaCobroDiferido` + `estadoPago` a `Quote`/`QuoteOption` (mismo patrón
+que `planSinPieMeses` en §9). **No se construye:** verificado en el código del Core
+(`Demos-Webiados-Clientes/core/src/collections/Tenants.ts`) que ya existen `fechaProximoAjuste`
+(date) y `estadoPago` (`al_dia`/`por_cobrar`/...) en `Tenants` — el comentario del código cita a
+Navautos por nombre como el caso de origen. Confirmado que `plan` incluye `vitrina`: ningún
+cliente de Webiados, ni el kit más simple, queda sin tenant. Cardinalidad revisada: una
+cotización puede tener varias opciones con términos hipotéticos distintos antes de elegir, pero
+al seleccionarse colapsa a un único cobro real — misma cardinalidad que un tenant.
+
+**Los campos existen en el Core; se llenan cuando el cliente entra en servicio, no antes.**
+Cargar una fecha antes de que el servicio arranque dejaría un cobro agendado para algo que
+todavía no existe — peor que no cargarlo. Navautos hoy no puede publicarse: falta el descuento
+del proveedor. Cuando se publique, el campo se llena allá, no acá.
