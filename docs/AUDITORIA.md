@@ -706,6 +706,12 @@ Tres documentos, tres alcances distintos del mismo término. No es que uno esté
 es que ninguno se escribió mirando a los otros dos. **Pendiente de que Felipe decida una
 versión única**, y de que se corrija en los tres lugares a la vez cuando la decida.
 
+**Esta decisión se aplica en tres archivos, y dos no son de este repo:** el texto de cláusula
+(acá), `docs/estrategia/2026-08-29-setup-en-la-mensualidad.md` y `docs/pricing.md` (ambos en
+`Demos-Webiados-Clientes`). Si se corrige solo el texto de la cláusula, `pricing.md` sigue
+diciendo *"tuyo desde el primer día"* sin excepción — y es lo que el cliente lee primero, en
+el sitio, antes de llegar a una cotización. Coordinación entre repos: centro de control.
+
 ### 10.2 · "Deja de pagar y sigue operando" — el caso más común, sin cubrir en ningún lado
 
 El texto de cláusula y `docs/estrategia/...md` cubren *"se cambia de proveedor"* (paga las
