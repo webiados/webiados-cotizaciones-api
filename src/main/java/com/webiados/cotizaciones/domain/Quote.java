@@ -77,6 +77,15 @@ public class Quote {
     @Column(name = "unlocked_at")
     private Instant unlockedAt;
 
+    /**
+     * Cuándo se avisó (o se sembró en silencio) que esta cotización quedó sin respuesta.
+     * {@code null} = todavía no corresponde avisar, o nadie la revisó nunca. Existe para que
+     * el aviso no vuelva a sonar todos los días una vez que ya sonó una vez — sin esto, la
+     * gente aprende a ignorarlo, que es peor que no tenerlo.
+     */
+    @Column(name = "stale_alerted_at")
+    private Instant staleAlertedAt;
+
     /** Porcentaje de IVA vigente al emitir. Se guarda para que el histórico no cambie. */
     @Column(name = "iva_pct", nullable = false)
     private int ivaPct = IVA_PCT_CHILE;
@@ -169,6 +178,14 @@ public class Quote {
         if (this.unlockedAt == null) {
             this.unlockedAt = when;
         }
+    }
+
+    /**
+     * Marca que ya se avisó (o se sembró en silencio) el "sin respuesta" de esta cotización,
+     * para que {@code StaleQuoteAlertJob} no la vuelva a tomar mañana.
+     */
+    public void markStaleAlerted(Instant when) {
+        this.staleAlertedAt = when;
     }
 
     /**
@@ -309,6 +326,10 @@ public class Quote {
 
     public Instant getUnlockedAt() {
         return unlockedAt;
+    }
+
+    public Instant getStaleAlertedAt() {
+        return staleAlertedAt;
     }
 
     public Instant getRejectedAt() {

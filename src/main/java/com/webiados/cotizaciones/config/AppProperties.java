@@ -12,7 +12,8 @@ public record AppProperties(
         Cors cors,
         Ratelimit ratelimit,
         Pricing pricing,
-        Leads leads
+        Leads leads,
+        StaleAlert staleAlert
 ) {
     /**
      * Lectura de leads del CRM del Core. El formulario público postea al Core (ahí vive el CRM);
@@ -57,5 +58,19 @@ public record AppProperties(
     }
 
     public record Ratelimit(int unlockMaxAttempts, int unlockWindowMinutes) {
+    }
+
+    /**
+     * Aviso interno de "cotización sin respuesta". Apagado por defecto (regla 13): nada se
+     * enciende porque exista el código, se enciende con su propia variable, apagada, que
+     * alguien prende a propósito.
+     *
+     * @param enabled apagado por defecto
+     * @param days    días desde el envío (o desde que se abrió, si nunca se marcó enviada)
+     *                sin selección ni rechazo, antes de avisar — 7 por defecto: la mitad de
+     *                {@code QUOTE_VALIDITY_DAYS} (15), deja una semana entera todavía para
+     *                actuar antes de que expire sola.
+     */
+    public record StaleAlert(boolean enabled, int days) {
     }
 }

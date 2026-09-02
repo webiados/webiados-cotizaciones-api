@@ -54,6 +54,10 @@ app:
     validity-days: ${QUOTE_VALIDITY_DAYS:15}
     # Base de la landing que ve el cliente (la sirve el frontend Angular).
     public-base-url: ${QUOTE_PUBLIC_BASE_URL:https://webiados.com/cotizacion}
+  stale-alert:
+    # Apagado por defecto (regla 13). Se prende con esta variable, a propósito.
+    enabled: ${QUOTE_STALE_ALERT_ENABLED:false}
+    days: ${QUOTE_STALE_ALERT_DAYS:7}
   mail:
     from: ${MAIL_FROM:cotizaciones@webiados.com}
     notify-to: ${NOTIFY_TO:contacto@webiados.com}

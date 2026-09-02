@@ -245,4 +245,33 @@ public class EmailService {
             log.error("Error enviando email de notificación para cotización {}", quote.getCodigo(), ex);
         }
     }
+
+    /** Aviso interno de {@link StaleQuoteAlertJob} — cotización sin respuesta hace {@code dias}. */
+    @Async
+    public void notifyStale(Quote quote, long dias) {
+        try {
+            String subject = "⏳ Sin respuesta hace %d días — %s (%s)"
+                    .formatted(dias, quote.getClientName(), quote.getCodigo());
+            String body = """
+                    Cliente: %s
+                    Email: %s
+                    Código: %s
+                    Sin respuesta hace: %d días
+                    """.formatted(
+                    quote.getClientName(),
+                    quote.getClientEmail() != null ? quote.getClientEmail() : "—",
+                    quote.getCodigo(),
+                    dias);
+
+            var message = new SimpleMailMessage();
+            message.setFrom(props.mail().from());
+            message.setTo(props.mail().notifyTo());
+            message.setSubject(subject);
+            message.setText(body);
+            mailSender.send(message);
+            log.info("Aviso de cotización sin respuesta enviado para cotización {}", quote.getCodigo());
+        } catch (Exception ex) {
+            log.error("Error enviando aviso de cotización sin respuesta para {}", quote.getCodigo(), ex);
+        }
+    }
 }

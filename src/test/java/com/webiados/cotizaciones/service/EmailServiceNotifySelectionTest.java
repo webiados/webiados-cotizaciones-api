@@ -97,6 +97,6 @@ class EmailServiceNotifySelectionTest {
     private static AppProperties propsCon(String notifyTo) {
         return new AppProperties(null, null,
                 new AppProperties.Mail("cotizaciones@webiados.com", notifyTo),
-                null, null, null, null);
+                null, null, null, null, null);
     }
 }
