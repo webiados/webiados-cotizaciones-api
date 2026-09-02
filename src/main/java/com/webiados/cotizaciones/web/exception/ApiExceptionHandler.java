@@ -4,11 +4,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.NoSuchElementException;
@@ -84,6 +86,28 @@ public class ApiExceptionHandler {
         var detail = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
         detail.setTitle("Acceso denegado");
         detail.setDetail("No tienes permiso para esta operación");
+        return detail;
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        // Encontrado en producción real: GET /api/admin/quotes/no-es-un-uuid daba 500 en vez
+        // de 400 — el {id} de la ruta espera un UUID, y cualquier cosa que no lo sea (un
+        // codigo pegado por error donde iba el id, un typo) lanzaba esto y caía en
+        // Exception.class antes de convertirse en el 400 que ya le correspondía.
+        var detail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        detail.setTitle("Parámetro inválido");
+        detail.setDetail("«%s» no es un valor válido para «%s»".formatted(ex.getValue(), ex.getName()));
+        return detail;
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail handleMalformedBody(HttpMessageNotReadableException ex) {
+        // Mismo patrón: un JSON roto en el cuerpo de la petición (typo, cliente a medio
+        // terminar) daba 500 en vez de 400 en producción real.
+        var detail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        detail.setTitle("Cuerpo de la solicitud inválido");
+        detail.setDetail("El cuerpo de la solicitud no es JSON válido");
         return detail;
     }
 

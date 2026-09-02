@@ -905,3 +905,21 @@ adivinar una, y ese día se resuelve distinto (probablemente con persistencia + 
 agresivo, no solo con guardar el conteo). **Condición para revisarlo:** cuando el número de
 cotizaciones activas simultáneas crezca lo bastante como para que un intento de fuerza bruta deje
 de ser una hipótesis teórica.
+
+## 16. Dos ocurrencias más del mismo patrón, encontradas verificando el deploy de §14
+
+Verificando en producción que `sendFailedAt`/`sendFailureReason` llegaban bien, until un `GET`
+con un `id` mal formado por error (`.../quotes/no-es-un-uuid`) — y salió **500**, no 404 ni 400.
+Con eso fresco, probé también un `POST` con JSON roto — **también 500**. Las dos, confirmadas en
+producción real antes de tocar nada, con el stack trace de Railway:
+
+- **`MethodArgumentTypeMismatchException`** — el `{id}` de la ruta espera `UUID`; cualquier cosa
+  que no lo sea (un `codigo` pegado donde iba el `id`, un typo) caía en `Exception.class` antes
+  de convertirse en el 400 que le correspondía.
+- **`HttpMessageNotReadableException`** — un cuerpo JSON malformado, mismo destino.
+
+**Es la quinta y sexta ocurrencia del mismo patrón en este archivo** (405 del `DELETE`, dos 403,
+y ahora estos dos) — un handler por tipo de excepción, no por caso puntual, para no dejar una
+séptima. Los dos, con test que reproduce el 500 real antes del fix y el 400 después.
+
+123/123 tests.

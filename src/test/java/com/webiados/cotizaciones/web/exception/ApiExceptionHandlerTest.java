@@ -2,12 +2,18 @@ package com.webiados.cotizaciones.web.exception;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -45,6 +51,19 @@ class ApiExceptionHandlerTest {
         public String soloAdmin() {
             throw new AccessDeniedException("Access is denied");
         }
+
+        @GetMapping("/con-id/{id}")
+        public String conId(@PathVariable UUID id) {
+            return id.toString();
+        }
+
+        record Cuerpo(String texto) {
+        }
+
+        @PostMapping("/con-cuerpo")
+        public String conCuerpo(@RequestBody Cuerpo cuerpo) {
+            return cuerpo.texto();
+        }
     }
 
     private final MockMvc mockMvc = MockMvcBuilders
@@ -74,5 +93,21 @@ class ApiExceptionHandlerTest {
         // de admin — antes del fix salía como 500.
         mockMvc.perform(get("/solo-admin"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void idInvalidoEnLaRutaDevuelve400NoNot500() throws Exception {
+        // Real en producción: GET /api/admin/quotes/no-es-un-uuid daba 500 antes del fix.
+        mockMvc.perform(get("/con-id/no-es-un-uuid"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void cuerpoMalFormadoDevuelve400NoNot500() throws Exception {
+        // Real en producción: POST /api/admin/quotes con JSON roto daba 500 antes del fix.
+        mockMvc.perform(post("/con-cuerpo")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{esto no es json"))
+                .andExpect(status().isBadRequest());
     }
 }
