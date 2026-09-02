@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -267,6 +268,31 @@ class QuoteServiceIT {
         var detalle = quoteService.addOption(creada.id(), opcion("Opción negociada", 12345, null));
 
         assertThat(detalle.warnings()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("desbloquear guarda la primera vez que el cliente puso la clave")
+    void recordUnlockGuardaLaPrimeraFecha() {
+        var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
+        assertThat(quoteService.getDetail(creada.id()).unlockedAt())
+                .as("nace sin desbloquear")
+                .isNull();
+
+        quoteService.recordUnlock(creada.codigo());
+        var primeraFecha = quoteService.getDetail(creada.id()).unlockedAt();
+        assertThat(primeraFecha).isNotNull();
+
+        quoteService.recordUnlock(creada.codigo());
+        assertThat(quoteService.getDetail(creada.id()).unlockedAt())
+                .as("volver a desbloquearla no pisa la primera fecha")
+                .isEqualTo(primeraFecha);
+    }
+
+    @Test
+    @DisplayName("desbloquear un código que no existe no revienta — unlock ya respondió 401 antes")
+    void recordUnlockDeUnCodigoInexistenteNoRevienta() {
+        assertThatCode(() -> quoteService.recordUnlock("no-existe-este-codigo"))
+                .doesNotThrowAnyException();
     }
 
     @Test

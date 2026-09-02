@@ -22,6 +22,8 @@ public record QuoteAdminDetail(
         Instant createdAt,
         Instant expiresAt,
         Instant sentAt,
+        /** Primera vez que el cliente puso la clave correcta, o {@code null} si nunca la abrió. */
+        Instant unlockedAt,
         UUID selectedOptionId,
         Instant selectedAt,
         Instant rejectedAt,

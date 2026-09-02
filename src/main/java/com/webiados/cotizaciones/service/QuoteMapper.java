@@ -54,6 +54,7 @@ public class QuoteMapper {
                 quote.getCreatedAt(),
                 quote.getExpiresAt(),
                 quote.getSentAt(),
+                quote.getUnlockedAt(),
                 quote.getSelectedAt(),
                 quote.getRejectedAt()
         );
@@ -85,6 +86,7 @@ public class QuoteMapper {
                 quote.getCreatedAt(),
                 quote.getExpiresAt(),
                 quote.getSentAt(),
+                quote.getUnlockedAt(),
                 quote.getSelectedOptionId(),
                 quote.getSelectedAt(),
                 quote.getRejectedAt(),

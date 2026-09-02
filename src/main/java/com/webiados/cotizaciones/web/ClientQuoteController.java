@@ -53,6 +53,7 @@ public class ClientQuoteController {
             var quote = quoteService.findByCodigo(codigo);
             String token = authService.clientUnlock(codigo, req.clave(), quote.getClaveHash());
             rateLimiter.reset(rateLimitKey); // éxito: resetear contador
+            quoteService.recordUnlock(codigo); // primera vez que hubo intención real, no un clic perdido
             return ResponseEntity.ok(new TokenResponse(token));
         } catch (Exception ex) {
             // Mismo 401 para "no existe" y "clave mala" para no filtrar existencia

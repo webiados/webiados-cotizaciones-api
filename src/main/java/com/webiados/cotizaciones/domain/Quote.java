@@ -68,6 +68,15 @@ public class Quote {
     @Column(name = "rejected_at")
     private Instant rejectedAt;
 
+    /**
+     * Primera vez que el cliente puso la clave correcta. {@code null} = nunca la abrió. Es
+     * intención real, no un contador de vistas — no se pisa en desbloqueos siguientes, igual
+     * que {@link #sentAt}. Sin esto, "el cliente entró y no eligió nada" era invisible: el
+     * único rastro que quedaba era {@code selectedAt}/{@code rejectedAt}.
+     */
+    @Column(name = "unlocked_at")
+    private Instant unlockedAt;
+
     /** Porcentaje de IVA vigente al emitir. Se guarda para que el histórico no cambie. */
     @Column(name = "iva_pct", nullable = false)
     private int ivaPct = IVA_PCT_CHILE;
@@ -148,6 +157,17 @@ public class Quote {
         this.status = QuoteStatus.SENT;
         if (this.sentAt == null) {
             this.sentAt = when;
+        }
+    }
+
+    /**
+     * Registra la primera vez que el cliente desbloqueó la cotización con su clave. No cambia
+     * el estado — desbloquear no es aceptar ni rechazar, solo mirar — y no pisa la fecha si ya
+     * se había desbloqueado antes.
+     */
+    public void markUnlocked(Instant when) {
+        if (this.unlockedAt == null) {
+            this.unlockedAt = when;
         }
     }
 
@@ -285,6 +305,10 @@ public class Quote {
 
     public Instant getSentAt() {
         return sentAt;
+    }
+
+    public Instant getUnlockedAt() {
+        return unlockedAt;
     }
 
     public Instant getRejectedAt() {

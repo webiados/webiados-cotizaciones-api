@@ -69,9 +69,9 @@ class V4MigrationTest {
             var result = flywayFor(ds).migrate();
 
             assertThat(result.success).isTrue();
-            // V5 agregó pricing_ref (2026-08-29) y V6 plan_sin_pie_meses (2026-09-01) a
-            // quote_option: sube de 4 a 6.
-            assertThat(result.migrationsExecuted).isEqualTo(6);
+            // V5 pricing_ref (2026-08-29), V6 plan_sin_pie_meses (2026-09-01), V7 unlocked_at
+            // (2026-09-02): sube de 4 a 7.
+            assertThat(result.migrationsExecuted).isEqualTo(7);
         }
 
         @Test

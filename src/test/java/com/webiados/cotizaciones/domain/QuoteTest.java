@@ -234,4 +234,34 @@ class QuoteTest {
             assertThat(q.getOptions().get(1).getPrecioMensual()).isNull();
         }
     }
+
+    @Nested
+    @DisplayName("desbloqueo")
+    class Desbloqueo {
+
+        @Test
+        @DisplayName("nace sin desbloquear")
+        void naceSinDesbloquear() {
+            assertThat(nueva().getUnlockedAt()).isNull();
+        }
+
+        @Test
+        @DisplayName("al desbloquearla guarda la fecha")
+        void desbloquearGuardaFecha() {
+            var q = nueva();
+            q.markUnlocked(AHORA);
+
+            assertThat(q.getUnlockedAt()).isEqualTo(AHORA);
+        }
+
+        @Test
+        @DisplayName("volver a desbloquearla no pisa la primera fecha — es intención real, no un contador")
+        void redesbloquearConservaLaPrimeraFecha() {
+            var q = nueva();
+            q.markUnlocked(AHORA);
+            q.markUnlocked(AHORA.plus(3, ChronoUnit.DAYS));
+
+            assertThat(q.getUnlockedAt()).isEqualTo(AHORA);
+        }
+    }
 }

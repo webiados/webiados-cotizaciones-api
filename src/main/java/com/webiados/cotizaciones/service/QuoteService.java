@@ -244,4 +244,14 @@ public class QuoteService {
                 .orElseThrow(() -> new NoSuchElementException("Cotización no encontrada"));
         return mapper.toClientView(quote, Instant.now());
     }
+
+    /**
+     * Registra que el cliente puso la clave correcta — se llama tras un {@code unlock}
+     * exitoso. Silenciosa a propósito: si la cotización no existe, {@code unlock} ya
+     * devolvió 401 antes de llegar acá, y esto no debe poder hacer fallar un login válido.
+     */
+    @Transactional
+    public void recordUnlock(String codigo) {
+        quoteRepo.findByCodigo(codigo).ifPresent(q -> q.markUnlocked(Instant.now()));
+    }
 }
