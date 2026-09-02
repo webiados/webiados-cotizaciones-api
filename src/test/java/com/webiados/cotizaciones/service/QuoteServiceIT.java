@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -168,6 +169,40 @@ class QuoteServiceIT {
         assertThat(quoteRepo.findById(creada.id()).orElseThrow().getStatus())
                 .as("una SENT sin correo enviado falsearía la tasa de cierre")
                 .isEqualTo(QuoteStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("un correo fallido deja una marca visible en el panel, no solo en el log")
+    void correoFallidoDejaMarcaVisible() {
+        var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
+        when(mailSender.createMimeMessage()).thenReturn(freshMime());
+        doThrow(new MailSendException("SMTP caído")).when(mailSender).send(any(MimeMessage.class));
+
+        assertThatThrownBy(() -> quoteService.send(creada.id())).isInstanceOf(MailSendException.class);
+
+        var detalle = quoteService.getDetail(creada.id());
+        assertThat(detalle.sendFailedAt())
+                .as("la marca tiene que sobrevivir a que la transacción del intento se revierta")
+                .isNotNull();
+        assertThat(detalle.sendFailureReason()).contains("SMTP caído");
+    }
+
+    @Test
+    @DisplayName("reintentar sin recrear nada: si el segundo intento funciona, la marca de fallo se borra")
+    void reintentarConExitoBorraLaMarca() {
+        var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
+        when(mailSender.createMimeMessage()).thenReturn(freshMime());
+        doThrow(new MailSendException("SMTP caído")).when(mailSender).send(any(MimeMessage.class));
+        assertThatThrownBy(() -> quoteService.send(creada.id())).isInstanceOf(MailSendException.class);
+        assertThat(quoteService.getDetail(creada.id()).sendFailedAt()).isNotNull();
+
+        doNothing().when(mailSender).send(any(MimeMessage.class)); // el segundo intento sí funciona
+        quoteService.send(creada.id()); // mismo id, no se recreó nada
+
+        var detalle = quoteService.getDetail(creada.id());
+        assertThat(detalle.status()).isEqualTo(QuoteStatus.SENT);
+        assertThat(detalle.sendFailedAt()).isNull();
+        assertThat(detalle.sendFailureReason()).isNull();
     }
 
     @Test

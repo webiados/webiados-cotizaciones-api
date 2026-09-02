@@ -56,7 +56,9 @@ public class QuoteMapper {
                 quote.getSentAt(),
                 quote.getUnlockedAt(),
                 quote.getSelectedAt(),
-                quote.getRejectedAt()
+                quote.getRejectedAt(),
+                quote.getSendFailedAt(),
+                quote.getSendFailureReason()
         );
     }
 
@@ -90,6 +92,8 @@ public class QuoteMapper {
                 quote.getSelectedOptionId(),
                 quote.getSelectedAt(),
                 quote.getRejectedAt(),
+                quote.getSendFailedAt(),
+                quote.getSendFailureReason(),
                 quote.getIvaPct(),
                 options,
                 historyEntries,

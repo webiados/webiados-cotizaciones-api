@@ -865,3 +865,43 @@ lista pueda distinguir "Enviada, sin abrir" de "Vista, sin elegir" — dos probl
 distintos que hoy se ven igual. Trabajo de UI pendiente, no de este repo.
 
 115/115 tests.
+
+---
+
+## 14. `/send` que falla y no dejaba marca — el peor de los tres, arreglado (2026-09-02)
+
+Del barrido de §13/14: si el SMTP rechazaba el correo, la cotización quedaba en `PENDING` **igual
+que una que nunca se intentó enviar** — con 3 de 8 cotizaciones reales vencidas sin respuesta al
+momento de medir, no había forma de saber si alguna simplemente nunca llegó. Es la peor clase de
+error: uno que se ve igual que el funcionamiento normal.
+
+**`Quote.sendFailedAt`/`sendFailureReason`** (`V9`, nullable): se marca cuando `/send` falla, sin
+bloquear el reintento — sigue en `PENDING`, `send` se puede volver a llamar sobre la misma
+cotización sin recrear nada. Un envío que sí funciona después **borra** la marca (`markSent`
+limpia `sendFailedAt`/`sendFailureReason`) — reintentar y que funcione no debería seguir
+mostrando el fallo de un intento viejo.
+
+**El detalle que lo hace funcionar:** la marca tiene que sobrevivir a que la transacción del
+intento fallido se revierta (`QuoteService.send()` sigue revirtiendo todo si el correo no sale —
+eso no cambió, una `SENT` sin correo real seguiría falseando la tasa de cierre). Se resolvió con
+`SendFailureRecorder`, un componente aparte con su propio `@Transactional(REQUIRES_NEW)` —
+**tiene que ser una clase distinta**, no un método más de `QuoteService`: Spring no aplica
+`REQUIRES_NEW` en una llamada de un método a otro dentro del mismo bean, solo a través del proxy.
+Probado explícitamente: falla → la marca sobrevive → reintento con éxito → la marca desaparece.
+
+**Expuesto en `QuoteAdminSummary` y `QuoteAdminDetail`** — visible en la lista del panel, no solo
+en el log de Railway. Trabajo de UI para mostrarlo, pendiente, no de este repo.
+
+121/121 tests.
+
+## 15. `RateLimiter` en memoria — anotado, no arreglado
+
+Los intentos de clave equivocada en `/unlock` solo se cuentan en memoria (Caffeine, expira solo,
+se pierde en cada redeploy) — nadie puede revisar después cuántos intentos hubo ni cuándo.
+
+**No se resuelve ahora, a propósito:** con 8 cotizaciones reales, nadie está intentando adivinar
+claves — es un problema del día que haya volumen suficiente como para que valga la pena intentar
+adivinar una, y ese día se resuelve distinto (probablemente con persistencia + bloqueo más
+agresivo, no solo con guardar el conteo). **Condición para revisarlo:** cuando el número de
+cotizaciones activas simultáneas crezca lo bastante como para que un intento de fuerza bruta deje
+de ser una hipótesis teórica.

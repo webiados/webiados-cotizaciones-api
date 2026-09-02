@@ -264,4 +264,49 @@ class QuoteTest {
             assertThat(q.getUnlockedAt()).isEqualTo(AHORA);
         }
     }
+
+    @Nested
+    @DisplayName("envío fallido")
+    class EnvioFallido {
+
+        @Test
+        @DisplayName("nace sin marca de fallo")
+        void naceSinMarca() {
+            var q = nueva();
+            assertThat(q.getSendFailedAt()).isNull();
+            assertThat(q.getSendFailureReason()).isNull();
+        }
+
+        @Test
+        @DisplayName("marcar un fallo deja la fecha y el motivo, sin tocar el estado")
+        void marcarFalloGuardaFechaYMotivo() {
+            var q = nueva();
+            q.markSendFailed(AHORA, "SMTP caído");
+
+            assertThat(q.getSendFailedAt()).isEqualTo(AHORA);
+            assertThat(q.getSendFailureReason()).isEqualTo("SMTP caído");
+            assertThat(q.statusAt(AHORA)).as("un fallo no es un envío").isEqualTo(QuoteStatus.PENDING);
+        }
+
+        @Test
+        @DisplayName("un motivo nulo no deja el campo en blanco silencioso")
+        void motivoNuloQuedaExplicito() {
+            var q = nueva();
+            q.markSendFailed(AHORA, null);
+
+            assertThat(q.getSendFailureReason()).isNotBlank();
+        }
+
+        @Test
+        @DisplayName("un envío que sí funciona después borra la marca de fallo anterior")
+        void enviarDeVerdadLimpiaLaMarca() {
+            var q = nueva();
+            q.markSendFailed(AHORA, "SMTP caído");
+
+            q.markSent(AHORA.plus(1, ChronoUnit.DAYS));
+
+            assertThat(q.getSendFailedAt()).isNull();
+            assertThat(q.getSendFailureReason()).isNull();
+        }
+    }
 }

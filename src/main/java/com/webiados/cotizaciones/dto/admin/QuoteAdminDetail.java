@@ -27,6 +27,10 @@ public record QuoteAdminDetail(
         UUID selectedOptionId,
         Instant selectedAt,
         Instant rejectedAt,
+        /** Cuándo falló el último intento real de enviar el correo, o {@code null} si nunca
+         *  falló (o el último intento sí funcionó). Se puede reintentar con {@code /send}. */
+        Instant sendFailedAt,
+        String sendFailureReason,
         int ivaPct,
         List<OptionClientView> options,
         List<SelectionHistoryEntry> history,

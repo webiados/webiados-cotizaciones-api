@@ -35,10 +35,12 @@ public class QuoteService {
     private final QuoteMapper mapper;
     private final AppProperties props;
     private final EmailService emailService;
+    private final SendFailureRecorder sendFailureRecorder;
 
     public QuoteService(QuoteRepository quoteRepo, SelectionRepository selectionRepo,
                         PasswordEncoder passwordEncoder, CodeGenerator codeGenerator,
-                        QuoteMapper mapper, AppProperties props, EmailService emailService) {
+                        QuoteMapper mapper, AppProperties props, EmailService emailService,
+                        SendFailureRecorder sendFailureRecorder) {
         this.quoteRepo = quoteRepo;
         this.selectionRepo = selectionRepo;
         this.passwordEncoder = passwordEncoder;
@@ -46,6 +48,7 @@ public class QuoteService {
         this.mapper = mapper;
         this.props = props;
         this.emailService = emailService;
+        this.sendFailureRecorder = sendFailureRecorder;
     }
 
     @Transactional
@@ -107,6 +110,11 @@ public class QuoteService {
      * transacción se revierte y la cotización no queda marcada como enviada. Una SENT sin
      * correo enviado falsearía la tasa de cierre, que es justo el dato que esto existe
      * para producir.
+     *
+     * <p>Si falla, queda una marca visible ({@link SendFailureRecorder}, en su propia
+     * transacción — sobrevive a que ésta se revierta) para que en el panel no se vea igual
+     * que una cotización que nunca se intentó enviar. No hace falta recrear nada para
+     * reintentar: sigue en {@code PENDING}, {@code send} se puede volver a llamar.
      */
     @Transactional
     public QuoteAdminDetail send(UUID id) {
@@ -117,7 +125,12 @@ public class QuoteService {
             throw new IllegalStateException("La cotización no tiene opciones; no se puede enviar");
         }
 
-        emailService.sendQuoteToClient(quote, publicUrl(quote.getCodigo()));
+        try {
+            emailService.sendQuoteToClient(quote, publicUrl(quote.getCodigo()));
+        } catch (RuntimeException ex) {
+            sendFailureRecorder.record(id, ex.getMessage());
+            throw ex;
+        }
         quote.markSent(Instant.now());
 
         var history = selectionRepo.findByQuoteIdOrderByCreatedAtAsc(id);

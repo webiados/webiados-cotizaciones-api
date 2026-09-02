@@ -22,6 +22,14 @@ public record QuoteAdminSummary(
          */
         Instant unlockedAt,
         Instant selectedAt,
-        Instant rejectedAt
+        Instant rejectedAt,
+        /**
+         * Cuándo falló el último intento real de enviar el correo, o {@code null} si nunca
+         * falló (o el último intento sí funcionó). Con {@code status == PENDING} y esto
+         * no-nulo: se intentó y no llegó — sin esto, se ve igual que una que nunca se
+         * intentó enviar. Se puede reintentar sin recrear la cotización.
+         */
+        Instant sendFailedAt,
+        String sendFailureReason
 ) {
 }

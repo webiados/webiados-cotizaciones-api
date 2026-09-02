@@ -86,6 +86,19 @@ public class Quote {
     @Column(name = "stale_alerted_at")
     private Instant staleAlertedAt;
 
+    /**
+     * Cuándo falló el último intento real de {@code /send}, o {@code null} si nunca falló (o
+     * si el último intento sí funcionó). Sin esto, una cotización con el correo rechazado por
+     * el SMTP se ve <strong>idéntica</strong> en el panel a una que nunca se intentó enviar —
+     * las dos quedan en {@code PENDING} — y quien la mira no puede distinguir "está esperando
+     * al cliente" de "el cliente nunca la recibió".
+     */
+    @Column(name = "send_failed_at")
+    private Instant sendFailedAt;
+
+    @Column(name = "send_failure_reason")
+    private String sendFailureReason;
+
     /** Porcentaje de IVA vigente al emitir. Se guarda para que el histórico no cambie. */
     @Column(name = "iva_pct", nullable = false)
     private int ivaPct = IVA_PCT_CHILE;
@@ -167,6 +180,20 @@ public class Quote {
         if (this.sentAt == null) {
             this.sentAt = when;
         }
+        // Un envío que sí funciona deja atrás cualquier fallo anterior — reintentar y que
+        // funcione no debería seguir mostrando la marca de un intento viejo.
+        this.sendFailedAt = null;
+        this.sendFailureReason = null;
+    }
+
+    /**
+     * Registra que se intentó mandar el correo real al cliente y falló — no cambia el estado
+     * (sigue {@code PENDING}, se puede reintentar sin recrear nada), pero deja la marca donde
+     * el panel la puede mostrar en vez de que se vea igual que una que nunca se intentó.
+     */
+    public void markSendFailed(Instant when, String motivo) {
+        this.sendFailedAt = when;
+        this.sendFailureReason = (motivo != null && !motivo.isBlank()) ? motivo : "Error desconocido";
     }
 
     /**
@@ -330,6 +357,14 @@ public class Quote {
 
     public Instant getStaleAlertedAt() {
         return staleAlertedAt;
+    }
+
+    public Instant getSendFailedAt() {
+        return sendFailedAt;
+    }
+
+    public String getSendFailureReason() {
+        return sendFailureReason;
     }
 
     public Instant getRejectedAt() {
