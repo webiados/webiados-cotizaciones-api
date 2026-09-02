@@ -113,7 +113,11 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneric(Exception ex) {
-        log.error("Error inesperado", ex);
+        // La clase va en el propio mensaje, no solo implícita en el stack trace: un fallo
+        // perfectamente normal (una excepción que faltaba handler, como pasó seis veces en
+        // este archivo) no debería quedar escondido detrás de un "Error inesperado" genérico
+        // que alguien lee como "se cayó la infraestructura".
+        log.error("Error inesperado ({}): {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
         var detail = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
         detail.setTitle("Error interno");
         detail.setDetail("Ocurrió un error inesperado");

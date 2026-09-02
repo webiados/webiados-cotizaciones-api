@@ -923,3 +923,42 @@ y ahora estos dos) — un handler por tipo de excepción, no por caso puntual, p
 séptima. Los dos, con test que reproduce el 500 real antes del fix y el 400 después.
 
 123/123 tests.
+
+## 17. Barrido completo de la superficie pública, no caso a caso
+
+Con el patrón repetido seis veces, el pedido fue: cada endpoint, con entradas malas — id
+inválido, JSON roto, campo obligatorio ausente, tipo equivocado, recurso que no existe, cuerpo
+vacío — y **¿el código le dice al que llama qué hizo mal, o dice "error interno"?**
+
+**Resultado, probado contra producción real, `curl`, no local:** los ~22 endpoints públicos,
+con las seis variantes de entrada mala donde aplican, **todos devuelven un 4xx correcto hoy** —
+0 quedan en 500. La razón: los dos handlers de §16 no son por endpoint, son por **tipo de
+excepción de Spring MVC**, y esos dos tipos (`MethodArgumentTypeMismatchException` para
+`@PathVariable`/`@RequestParam` mal tipados, `HttpMessageNotReadableException` para JSON roto
+**o con un campo del tipo equivocado** — Jackson lanza la misma excepción para las dos) cubren
+toda la forma en que Spring MVC puede fallar al leer una petición, sin importar en qué
+controller. Por eso el barrido salió limpio de una vez: no son 22 arreglos, son 2.
+
+| Excepción | Dispara con | Antes | Después | Alcance |
+|---|---|---|---|---|
+| `HttpRequestMethodNotSupportedException` | verbo equivocado en una ruta que existe | 500 | 405 | Todos los endpoints (arreglado antes de esta semana) |
+| `ResponseStatusException` | código del token de cliente ≠ código de la ruta | 500 | 403 | `ClientQuoteController` |
+| `AccessDeniedException` | token de cliente contra endpoint solo-admin | 500 | 403 | Todo lo `@PreAuthorize("hasRole('ADMIN')")` |
+| `MethodArgumentTypeMismatchException` | `id`/`optionId` con formato inválido en la ruta | 500 | 400 | Todos los `@PathVariable UUID` |
+| `HttpMessageNotReadableException` | JSON roto, cuerpo vacío, **o un campo con el tipo equivocado** (`precio: "texto"`, una fecha mal formada) | 500 | 400 | Todos los `@RequestBody` |
+| `MethodArgumentNotValidException` | campo `@NotBlank`/`@NotNull` ausente | 400 | 400 | Ya andaba bien — sin cambios |
+| `NoSuchElementException` | recurso que no existe (id válido, no está) | 404 | 404 | Ya andaba bien — sin cambios |
+| `IllegalArgumentException`/`IllegalStateException` | validación de negocio (credenciales, reglas propias) | 400/422 | 400/422 | Ya andaba bien — sin cambios |
+
+**Lo que queda cubierto por el genérico, y es correcto que quede ahí:** cualquier cosa que no
+sea "el que llamó mandó algo mal formado" — una caída real de Postgres, del Core, del SMTP en
+medio de una operación que no es `/send` (que ya tiene su propio manejo). Ahí sí corresponde
+500, porque el que llama no puede corregir nada.
+
+**El registro del genérico ahora nombra la excepción en el mensaje, no solo en el stack trace**
+(`"Error inesperado (NombreDeLaClase): mensaje"`) — el hallazgo de Rofex fue justo este: una
+falla de credenciales perfectamente normal quedaba escondida detrás de un `"error interno del
+servidor"` genérico, y eso mandó a alguien a revisar la infraestructura equivocada.
+
+123/123 tests. Nada nuevo que arreglar — el barrido confirma que los dos handlers ya cerraron
+toda la clase de error, no solo los seis casos encontrados uno por uno.
