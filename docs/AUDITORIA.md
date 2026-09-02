@@ -828,3 +828,40 @@ el timestamp del navegador, no del servidor — la ventana de logs de Railway ya
 momento de buscarlo). Verificado con `curl` segundos después: `200` normal. Un `422` acá sale de
 `PricingClient` cuando el Core no responde y **tampoco hay nada cacheado todavía** — se
 autocorrigió solo. Si vuelve a aparecer, esta es la primera vez registrada.
+
+---
+
+## 13. Ciclo de vida de una cotización — `unlockedAt` y la alerta de sin respuesta (2026-09-02)
+
+Salió de §12: si un cliente entra, pone la clave y no elige nada, el sistema no lo sabía — el
+único rastro era `selectedAt`/`rejectedAt`. Se midió el costo real esa semana: de tres
+oportunidades de venta, las tres murieron después de dar el precio sin que nadie supiera si las
+habían mirado.
+
+**`Quote.unlockedAt`** (nullable, `V7`): primera vez que `POST /unlock` funciona con la clave
+correcta — mismo patrón que `sentAt`, no se pisa en desbloqueos siguientes. Es intención real,
+no un contador de vistas. Con esto, "vista, sin elegir" deja de ser invisible: es un estado
+**derivado** (`unlockedAt != null AND selectedOptionId == null AND status != REJECTED`), no un
+campo aparte — un dato que se puede calcular no se guarda.
+
+**Deliberadamente no se agregó "se abrió el enlace"** (antes de poner la clave): necesitaría un
+endpoint público nuevo, sin autenticar — más expuesto que `/unlock` y con menos señal (alguien
+que abre un link por curiosidad no es un interesado; alguien que escribe la clave sí).
+
+**`StaleQuoteAlertJob`** (`@Scheduled`, 09:00 diario) avisa por correo interno cuando una
+cotización lleva `QUOTE_STALE_ALERT_DAYS` (7 por defecto — la mitad de `QUOTE_VALIDITY_DAYS`,
+deja una semana para actuar antes de que expire sola) sin selección ni rechazo desde que se
+envió (o se abrió, si nunca se marcó enviada). **Apagada por defecto** (`QUOTE_STALE_ALERT_ENABLED=false`,
+regla 13). `Quote.staleAlertedAt` (`V8`) evita que el mismo aviso suene todos los días.
+
+**La primera vez que se activa, siembra en silencio:** si ya había cotizaciones viejas sin
+respuesta antes de prender la alerta, la primera pasada las marca como revisadas sin mandar
+ningún correo — se detecta comprobando si *alguna* cotización en toda la tabla ya tiene
+`staleAlertedAt`; si ninguna lo tiene, esta pasada es la siembra. Una alerta que nace con veinte
+avisos atrasados de golpe nace ignorada.
+
+**Expuesto para el panel:** `unlockedAt` en `QuoteAdminSummary` y `QuoteAdminDetail`, para que la
+lista pueda distinguir "Enviada, sin abrir" de "Vista, sin elegir" — dos problemas de venta
+distintos que hoy se ven igual. Trabajo de UI pendiente, no de este repo.
+
+115/115 tests.
