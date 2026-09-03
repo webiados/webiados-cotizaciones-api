@@ -56,6 +56,9 @@ public class StaleQuoteAlertJob {
         var limite = now.minus(props.staleAlert().days(), ChronoUnit.DAYS);
         var candidatas = quoteRepo.findStaleCandidates(limite);
         if (candidatas.isEmpty()) {
+            // Late latido: sin esto, una corrida que no encuentra nada no deja rastro, y no hay
+            // forma de distinguir "no había vencidas" de "el job dejó de correr".
+            log.info("Chequeo de cotizaciones sin respuesta: corrió, 0 candidatas");
             return;
         }
 
@@ -72,6 +75,8 @@ public class StaleQuoteAlertJob {
         if (esLaPrimeraVez) {
             log.info("Aviso de cotización sin respuesta activado por primera vez: {} cotizaciones "
                     + "viejas sembradas en silencio, sin avisar", candidatas.size());
+        } else {
+            log.info("Chequeo de cotizaciones sin respuesta: corrió, {} candidatas avisadas", candidatas.size());
         }
     }
 

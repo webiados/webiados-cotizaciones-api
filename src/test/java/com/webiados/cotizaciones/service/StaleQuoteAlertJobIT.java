@@ -1,12 +1,19 @@
 package com.webiados.cotizaciones.service;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.webiados.cotizaciones.config.AppProperties;
 import com.webiados.cotizaciones.db.TestPostgres;
 import com.webiados.cotizaciones.dto.admin.CreateQuoteRequest;
 import com.webiados.cotizaciones.dto.admin.OptionRequest;
 import com.webiados.cotizaciones.repo.QuoteRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -130,6 +137,34 @@ class StaleQuoteAlertJobIT {
 
         assertThat(quoteRepo.findByCodigo(nueva.codigo()).orElseThrow().getStaleAlertedAt()).isNotNull();
         verify(mailSender, timeout(3000).times(1)).send(any(SimpleMailMessage.class));
+    }
+
+    /**
+     * Un vigilante que solo habla cuando encuentra algo no se distingue de uno muerto: si pasan
+     * semanas sin correo, esto tenía que poder responder si es que no hubo vencidas o si el job
+     * dejó de correr. Antes de este test, la corrida sin candidatas no dejaba ningún rastro.
+     */
+    private ListAppender<ILoggingEvent> logAppender;
+
+    @BeforeEach
+    void enganchaElLog() {
+        logAppender = new ListAppender<>();
+        logAppender.start();
+        ((Logger) LoggerFactory.getLogger(StaleQuoteAlertJob.class)).addAppender(logAppender);
+    }
+
+    @AfterEach
+    void desenganchaElLog() {
+        ((Logger) LoggerFactory.getLogger(StaleQuoteAlertJob.class)).detachAppender(logAppender);
+    }
+
+    @Test
+    @DisplayName("corrida sin candidatas deja constancia en el log, no queda en silencio")
+    void corridaSinCandidatasDejaConstancia() {
+        jobCon(true, 7).check(Instant.now());
+
+        assertThat(logAppender.list)
+                .anyMatch(e -> e.getLevel() == Level.INFO && e.getFormattedMessage().contains("0 candidatas"));
     }
 
     @Test
