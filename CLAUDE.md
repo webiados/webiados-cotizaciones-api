@@ -256,3 +256,34 @@ se ve distinto en cada teléfono y no respeta ni la paleta ni el peso tipográfi
 ⚠️ **Y esto se puede verificar solo.** Es una línea de bash sobre el HTML servido, del mismo tipo que
 los chequeos que ya existen — **conviene que rompa el build en vez de depender de que alguien
 recuerde.**
+
+---
+
+## 🔴 Nada se escribe en el chat: todo se reporta al centro de control *(2026-09-03, Felipe)*
+
+**Textual:** *"no deben hacer ningún resumen ni escribir nada en sus chats, porque nadie los revisa.
+Todo debe ser reportado al centro de control. En el caso extremo lo escriben en una línea."*
+
+### Por qué
+
+**Nadie lee esos chats.** Un resumen escrito ahí **no lo ve ninguna persona**: se pierde, y encima
+da la sensación de haber informado cuando no se informó a nadie.
+
+**El centro de control** —la sesión de `Demos-Webiados-Clientes`— **es quien lee, decide y le lleva
+a Felipe lo que le corresponde.**
+
+### Cómo se reporta
+
+| | |
+|---|---|
+| **Todo va por mensaje al centro de control** | Lo que terminaste, lo que encontraste, dónde te trabaste, y lo que decidiste distinto |
+| **Y al buzón del repo** — `docs/reportes/<repo>.md` | Para que sobreviva a que se cierre la sesión |
+| **En el chat, como mucho UNA LÍNEA** | Y solo si hace falta. Nunca un resumen, nunca un informe |
+
+### Y no se le escribe a los clientes
+
+**Por ahora, ninguna sesión le escribe a un cliente ni le manda nada.** Si algo tiene que llegarle a
+un cliente, **se le propone al centro de control y lo decide Felipe.**
+
+> **Se reporta ANTES de quedarse esperando, no después.** Un modelo bloqueado en silencio es un
+> modelo detenido que nadie sabe que está detenido.
