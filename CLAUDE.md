@@ -200,6 +200,17 @@ depender de una transacción ambiente — lo único que perdía era una atomicid
 necesitaba. **Antes de decidir cómo arreglarlo (bean aparte vs. sacar la anotación), hay que leer
 qué hace el método adentro**, no asumir el daño por la forma del bug.
 
+**Y la mitad que vuelve esto accionable: los tests de este repo no pueden encontrar esta familia
+de bug, y no la van a encontrar mientras sigan escritos así.** `StaleQuoteAlertJobIT`,
+`SelectionServiceIT`, etc. llaman al método directo sobre una instancia construida a mano
+(`new StaleQuoteAlertJob(...)`) o dependen de que el bean de Spring ya exista en el contexto de
+test, pero nunca pasan por el proxy transaccional de la forma en que producción lo haría a través
+de una auto-invocación real. **143/143 en verde no dice nada sobre esta familia de bug, y va a
+seguir sin decir nada** — no es una garantía que ya se tenga, es un hueco conocido en la red. Si
+en algún punto vale la pena cerrarlo: el primer test capaz de verlo es uno que arme el bean **a
+través del contenedor de Spring** (no con `new`) y compruebe que el dato llegó a la base después
+de una llamada que reproduzca la auto-invocación real — no existe ninguno así en este repo hoy.
+
 **Antes de agregar un método `@Transactional` a un service, pregúntate quién lo llama.** Si es
 otro método de la misma clase, y el método SÍ depende de la transacción para persistir (dirty
 checking, no `save()` explícito), sacalo a un bean aparte. Si no depende de eso, la pregunta es
