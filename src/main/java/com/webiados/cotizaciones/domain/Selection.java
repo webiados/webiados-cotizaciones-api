@@ -35,6 +35,26 @@ public class Selection {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
+    /**
+     * El id que Resend devolvió al aceptar el aviso interno de esta selección
+     * ({@code EmailService.notifySelection}) — igual que {@link Quote#getResendEmailId()},
+     * pero acá porque una cotización puede tener varias selecciones (INICIAL + UPGRADE) y un
+     * rebote tiene que calzar con el aviso exacto, no con la cotización en general.
+     */
+    @Column(name = "resend_email_id", length = 64)
+    private String resendEmailId;
+
+    /**
+     * Cuándo Resend avisó, por webhook, que este aviso interno YA ACEPTADO rebotó de verdad.
+     * Acá el mensaje al notificar no puede ser "algo falló": la aceptación del cliente no se
+     * perdió — está guardada en {@link Quote#getStatus()} — lo que se perdió es que alguien se
+     * enterara a tiempo. La acción no es reintentar el correo, es que una persona llame.
+     */
+    @Column(name = "bounce_detected_at")
+    private Instant bounceDetectedAt;
+
+    private String bounceReason;
+
     protected Selection() {
     }
 
@@ -64,5 +84,31 @@ public class Selection {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getResendEmailId() {
+        return resendEmailId;
+    }
+
+    public Instant getBounceDetectedAt() {
+        return bounceDetectedAt;
+    }
+
+    public String getBounceReason() {
+        return bounceReason;
+    }
+
+    /** Guarda el id que Resend devolvió al aceptar el aviso interno de esta selección. */
+    public void recordResendEmailId(String resendEmailId) {
+        this.resendEmailId = resendEmailId;
+    }
+
+    /**
+     * Registra que Resend avisó, por webhook, que el aviso interno de esta selección rebotó de
+     * verdad. No hay estado que corregir: la selección ya está guardada.
+     */
+    public void markBounced(Instant when, String motivo) {
+        this.bounceDetectedAt = when;
+        this.bounceReason = (motivo != null && !motivo.isBlank()) ? motivo : "Motivo desconocido";
     }
 }

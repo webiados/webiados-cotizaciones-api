@@ -2,6 +2,7 @@ package com.webiados.cotizaciones.web;
 
 import com.webiados.cotizaciones.config.AppProperties;
 import com.webiados.cotizaciones.service.QuoteService;
+import com.webiados.cotizaciones.service.SelectionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,12 +34,15 @@ class ResendWebhookControllerTest {
             .encodeToString("una-llave-de-prueba-de-32-bytes".getBytes(StandardCharsets.UTF_8));
 
     private final QuoteService quoteService = mock(QuoteService.class);
+    private final SelectionService selectionService = mock(SelectionService.class);
 
     private MockMvc mockMvcCon(String webhookSecret) {
         var props = new AppProperties(null, null,
                 new AppProperties.Mail(null, null, null, webhookSecret, null),
                 null, null, null, null, null);
-        return MockMvcBuilders.standaloneSetup(new ResendWebhookController(quoteService, props)).build();
+        return MockMvcBuilders
+                .standaloneSetup(new ResendWebhookController(quoteService, selectionService, props))
+                .build();
     }
 
     /** Firma un cuerpo exactamente como lo hace Svix — el mismo algoritmo que verifica el controller. */
@@ -71,6 +75,31 @@ class ResendWebhookControllerTest {
                 .andExpect(status().isOk());
 
         verify(quoteService).recordBounce("re_abc123", "mailbox does not exist");
+        // Calzó por cotización: no hace falta ni tiene sentido buscarlo también como selección.
+        verify(selectionService, never()).recordBounce(anyString(), anyString());
+    }
+
+    @Test
+    void unEmailIdQueNoEsDeUnaCotizacionSeBuscaComoAvisoDeSeleccion() throws Exception {
+        when(quoteService.recordBounce(anyString(), anyString())).thenReturn(false);
+        when(selectionService.recordBounce(anyString(), anyString())).thenReturn(true);
+        String svixId = "msg_test_selection";
+        String timestamp = String.valueOf(Instant.now().getEpochSecond());
+        String body = """
+                {"type":"email.bounced","data":{"email_id":"re_de_un_aviso_de_seleccion",
+                "bounce":{"message":"mailbox full"}}}""";
+        String firma = firmar(SECRET, svixId, timestamp, body);
+
+        mockMvcCon(SECRET).perform(post("/api/webhooks/resend")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("svix-id", svixId)
+                        .header("svix-timestamp", timestamp)
+                        .header("svix-signature", firma)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        verify(quoteService).recordBounce("re_de_un_aviso_de_seleccion", "mailbox full");
+        verify(selectionService).recordBounce("re_de_un_aviso_de_seleccion", "mailbox full");
     }
 
     @Test

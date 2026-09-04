@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Único camino de envío de correo: la API HTTP de Resend. No SMTP, no Gmail de respaldo — dos
@@ -237,8 +238,15 @@ public class EmailService {
                 .replace("\"", "&quot;");
     }
 
+    /**
+     * @return un futuro con el id que Resend devolvió (o {@code null} si el envío falló) — para
+     *         que {@code SelectionService} lo guarde en la {@code Selection} exacta sin bloquear
+     *         la respuesta al cliente. {@code @Async} con {@link CompletableFuture} sigue
+     *         corriendo en otro hilo igual que antes; la diferencia es que esta vez el llamador
+     *         se puede enganchar al resultado sin tener que esperarlo.
+     */
     @Async
-    public void notifySelection(Quote quote, QuoteOption option, SelectionKind kind) {
+    public CompletableFuture<String> notifySelection(Quote quote, QuoteOption option, SelectionKind kind) {
         try {
             String subject = kind == SelectionKind.UPGRADE
                     ? "Upgrade — Cotización %s — %s".formatted(quote.getCodigo(), quote.getClientName())
@@ -261,14 +269,17 @@ public class EmailService {
                     option.getCurrency(),
                     kind == SelectionKind.UPGRADE ? "UPGRADE" : "SELECCIÓN INICIAL");
 
-            sendViaResend(props.mail().notifyTo(), null, subject, null, body, List.of());
+            String resendId = sendViaResend(props.mail().notifyTo(), null, subject, null, body, List.of());
             // Antes solo se registraba el fallo: "no hay error en el log" no es prueba de que se
             // mandó, es prueba de que no se lanzó una excepción — y un envío que falla sin lanzar
             // ninguna se vería exactamente igual. Con el código acá, "¿se avisó de esta?" se
             // responde buscando, no revisando el buzón de NOTIFY_TO.
-            log.info("Notificación interna de selección enviada para cotización {}", quote.getCodigo());
+            log.info("Notificación interna de selección enviada para cotización {} (resend id {})",
+                    quote.getCodigo(), resendId);
+            return CompletableFuture.completedFuture(resendId);
         } catch (Exception ex) {
             log.error("Error enviando email de notificación para cotización {}", quote.getCodigo(), ex);
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -325,6 +336,42 @@ public class EmailService {
             log.info("Aviso de rebote enviado para cotización {}", quote.getCodigo());
         } catch (Exception ex) {
             log.error("Error enviando aviso de rebote para {}", quote.getCodigo(), ex);
+        }
+    }
+
+    /**
+     * Aviso interno de que el aviso de una SELECCIÓN rebotó — no de que la cotización nunca
+     * llegó. Mensaje deliberadamente distinto de {@link #notifyBounce}: la aceptación del
+     * cliente NO se perdió, ya está guardada; lo que se perdió es que alguien se enterara a
+     * tiempo. La acción acá no es reintentar el correo — es que una persona llame. Con eso, el
+     * que reciba el aviso sabe qué hacer sin tener que interpretarlo.
+     */
+    @Async
+    public void notifySelectionBounce(Quote quote, QuoteOption option, String motivo) {
+        try {
+            String subject = "Un cliente aceptó y no pudimos avisar — %s (%s)"
+                    .formatted(quote.getClientName(), quote.getCodigo());
+            String body = """
+                    Cliente: %s
+                    Email: %s
+                    Código: %s
+                    Opción aceptada: %s
+                    Motivo del rebote del aviso: %s
+
+                    El cliente SÍ aceptó — está guardado en el sistema, no se perdió nada de eso.
+                    Lo que rebotó fue el aviso interno de que había pasado. Nadie se enteró a
+                    tiempo por este canal: hay que entrar al panel y llamarlo.
+                    """.formatted(
+                    quote.getClientName(),
+                    quote.getClientEmail() != null ? quote.getClientEmail() : "—",
+                    quote.getCodigo(),
+                    option.getTitulo(),
+                    motivo != null ? motivo : "—");
+
+            sendViaResend(props.mail().notifyTo(), null, subject, null, body, List.of());
+            log.info("Aviso de rebote de selección enviado para cotización {}", quote.getCodigo());
+        } catch (Exception ex) {
+            log.error("Error enviando aviso de rebote de selección para {}", quote.getCodigo(), ex);
         }
     }
 

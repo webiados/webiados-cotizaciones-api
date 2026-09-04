@@ -71,7 +71,9 @@ public class QuoteMapper {
                 s.getOption().getId(),
                 optionMap.getOrDefault(s.getOption().getId().toString(), "—"),
                 s.getKind(),
-                s.getCreatedAt()
+                s.getCreatedAt(),
+                s.getBounceDetectedAt(),
+                s.getBounceReason()
         )).toList();
         return new QuoteAdminDetail(
                 quote.getId(),

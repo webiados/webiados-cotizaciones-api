@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webiados.cotizaciones.config.AppProperties;
 import com.webiados.cotizaciones.service.QuoteService;
+import com.webiados.cotizaciones.service.SelectionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -46,11 +47,14 @@ public class ResendWebhookController {
     private static final long TOLERANCIA_SEGUNDOS = 300;
 
     private final QuoteService quoteService;
+    private final SelectionService selectionService;
     private final AppProperties props;
     private final ObjectMapper json = new ObjectMapper();
 
-    public ResendWebhookController(QuoteService quoteService, AppProperties props) {
+    public ResendWebhookController(QuoteService quoteService, SelectionService selectionService,
+                                    AppProperties props) {
         this.quoteService = quoteService;
+        this.selectionService = selectionService;
         this.props = props;
     }
 
@@ -99,11 +103,16 @@ public class ResendWebhookController {
         }
 
         String motivo = motivoDe(tipo, data);
-        boolean calzo = quoteService.recordBounce(emailId, motivo);
+        // Un email_id es de un solo envío — o es el correo al cliente, o es un aviso interno de
+        // selección, nunca los dos. Se prueban los dos porque acá no hay forma de saber cuál es
+        // antes de buscar; solo uno de los dos va a calzar.
+        boolean calzo = quoteService.recordBounce(emailId, motivo)
+                || selectionService.recordBounce(emailId, motivo);
         if (!calzo) {
-            // No es un error: puede ser un correo interno a NOTIFY_TO, que no tiene cotización
-            // detrás. Se loguea igual, para que el volumen de "no calzó" también quede visible.
-            log.info("Webhook de Resend {} (email_id={}) no calzó con ninguna cotización", tipo, emailId);
+            // No es un error: puede ser un correo interno de otro tipo (sin respuesta, por
+            // ejemplo), que hoy no guarda su id. Se loguea igual, para que el volumen de "no
+            // calzó" también quede visible.
+            log.info("Webhook de Resend {} (email_id={}) no calzó con nada conocido", tipo, emailId);
         }
         return ResponseEntity.ok().build();
     }

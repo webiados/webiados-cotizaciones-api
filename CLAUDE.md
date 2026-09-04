@@ -151,6 +151,15 @@ Tres caminos en `EmailService`:
   aceptado rebotó de verdad — antes eso se veía exactamente igual que una cotización que el
   cliente ignoró; ahora hay una marca (`bounceDetectedAt`) y un aviso a quien puede llamar por
   teléfono.
+- `notifySelectionBounce` — el aviso interno de "un cliente eligió" hereda el mismo problema:
+  también manda por Resend y también puede rebotar. `Selection.resendEmailId` (V11) es lo que
+  permite que el webhook calce ese rebote específico, no la cotización en general (puede haber
+  varias selecciones). El mensaje es deliberadamente distinto del de `notifyBounce`: la
+  aceptación del cliente **no se perdió** — sigue en `Quote.status` — lo que se perdió es que
+  alguien se enterara a tiempo. La acción no es reintentar el correo, es llamar. Guardar el id
+  pasa por `SelectionResendIdRecorder`, un bean aparte — mismo motivo que `SendFailureRecorder`:
+  llamarlo con `this.metodo(...)` desde el mismo método que lo dispara (`.thenAccept`) bypasea el
+  proxy de Spring y `@Transactional` deja de hacer nada.
 
 ## Conventions
 
