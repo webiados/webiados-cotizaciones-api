@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * Único camino de envío de correo: la API HTTP de Resend. No SMTP, no Gmail de respaldo — dos
  * caminos para lo mismo se desalinean, y el que no se usa se pudre sin que nadie lo note
- * (decisión 2026-09-04, ver {@code docs/correo-smtp.md}).
+ * (decisión 2026-09-04, ver {@code docs/correo-resend.md}).
  *
  * <p>Se manda por HTTP y no por el SMTP de Resend a propósito: la API devuelve un {@code id}
  * por cada correo aceptado, y ese id es la única forma de calzar el webhook de rebote contra
