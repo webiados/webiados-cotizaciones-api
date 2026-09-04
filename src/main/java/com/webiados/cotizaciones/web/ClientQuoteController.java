@@ -11,6 +11,8 @@ import com.webiados.cotizaciones.service.QuoteService;
 import com.webiados.cotizaciones.service.SelectionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +28,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/client/quotes")
 public class ClientQuoteController {
+
+    private static final Logger log = LoggerFactory.getLogger(ClientQuoteController.class);
 
     private final QuoteService quoteService;
     private final SelectionService selectionService;
@@ -48,18 +52,29 @@ public class ClientQuoteController {
         if (rateLimiter.isBlocked(rateLimitKey)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
         }
+        String token;
         try {
             // Buscamos el quote; si no existe lanzamos mismo 401 que clave mala
             var quote = quoteService.findByCodigo(codigo);
-            String token = authService.clientUnlock(codigo, req.clave(), quote.getClaveHash());
-            rateLimiter.reset(rateLimitKey); // éxito: resetear contador
-            quoteService.recordUnlock(codigo); // primera vez que hubo intención real, no un clic perdido
-            return ResponseEntity.ok(new TokenResponse(token));
+            token = authService.clientUnlock(codigo, req.clave(), quote.getClaveHash());
         } catch (Exception ex) {
             // Mismo 401 para "no existe" y "clave mala" para no filtrar existencia
             rateLimiter.record(rateLimitKey); // un solo registro por intento fallido
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        rateLimiter.reset(rateLimitKey); // éxito: resetear contador
+        try {
+            // Fuera del try de arriba a propósito: recordUnlock() dice en su propio Javadoc que
+            // esto no debe poder tumbar un login válido. Antes estaba en el mismo catch que la
+            // clave — si esto fallaba por cualquier razón ajena a la clave (una escritura a la
+            // BD, por ejemplo), el cliente con la clave correcta recibía el mismo 401 que
+            // alguien con la clave mala: el sistema afirmaba "clave incorrecta" sin poder
+            // saberlo.
+            quoteService.recordUnlock(codigo); // primera vez que hubo intención real, no un clic perdido
+        } catch (Exception ex) {
+            log.error("No se pudo registrar el desbloqueo de {} (el login sí fue válido)", codigo, ex);
+        }
+        return ResponseEntity.ok(new TokenResponse(token));
     }
 
     @GetMapping("/{codigo}")
