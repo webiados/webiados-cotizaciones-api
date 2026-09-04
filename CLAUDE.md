@@ -188,6 +188,31 @@ Tres caminos en `EmailService`:
   llamarlo con `this.metodo(...)` desde el mismo método que lo dispara (`.thenAccept`) bypasea el
   proxy de Spring y `@Transactional` deja de hacer nada.
 
+### El enlace de cotización nunca vence del lado del backend — el frontend sí lo resuelve (2026-09-04)
+
+`unlock`/`GET` de este repo no revisan `expiresAt` en ningún punto: una cotización aceptada hace
+meses, o vencida y nunca aceptada, se puede seguir viendo para siempre con el código+clave. Es
+intencional para la aceptada (soporta upgrade). El frontend (`github.com/webiados/webiados`,
+`cotizacion.ts`) es quien decide qué se muestra: si está vencida y nunca aceptada, enruta a una
+pantalla dedicada sin precios ("Cotización expirada... contáctanos"), no a la grilla de opciones.
+
+**Error de forma para no repetir:** auditar este backend solo y sacar una conclusión sobre lo que
+ve un cliente. La primera lectura (solo este repo) concluyó que el caso "vencida sin aceptar" no
+tenía tratamiento — falso: el tratamiento está en el otro repo. **Antes de afirmar qué ve un
+cliente, hay que mirar la pantalla (`github.com/webiados/webiados`), no solo la API que la
+alimenta.**
+
+**El matiz que sí quedó abierto:** una cotización *aceptada* muestra la opción elegida como
+comprobante (bien), pero las opciones NO elegidas siguen con precio y botón "Seleccionar plan"
+activos — para upgrade — con el precio **congelado el día que se creó la cotización**
+(`QuoteClientView.createdAt`, expuesto 2026-09-04 justo para esto). Seleccionar (inicial o
+upgrade) **nunca cobra nada** — este repo no tiene ninguna integración de pago; solo registra la
+elección y avisa por correo interno, el pago y el trabajo real siempre pasan por una persona
+después. Por eso el arreglo decidido es un texto con la fecha en el camino de upgrade (pendiente
+de aplicar en `webiados/webiados`, `opciones.html`, junto al botón cuando
+`quote.selectedOptionId && quote.selectedOptionId !== option.id`), no bloquear el botón — alguien
+siempre revisa antes de que algo se cobre de verdad.
+
 ## Conventions
 
 - Spring Boot 3 / Java 21. Records for DTOs where immutability makes sense.
