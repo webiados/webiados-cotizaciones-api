@@ -99,6 +99,33 @@ security/     → JwtAuthFilter, JwtService, RateLimiter
 - **`JWT_SECRET` has no default.** The service refuses to start if it's missing, blank, the
   compromised dev value that once lived in the repo, or shorter than 32 bytes (`JwtService`).
   A secret has no fallback: if it's absent, the app fails and shouts.
+- **JWT admin dura `JWT_ADMIN_TTL` (480 min = 8 horas hoy en Railway, verificado
+  2026-09-04). No hay revocación:** son *stateless* — sin lista negra ni tabla de sesiones — así
+  que un token ya emitido sigue vivo hasta que expira solo, pase lo que pase con la cuenta detrás.
+  8 horas es "incómodo, no crítico" (el criterio que fijó el centro de control: si fueran
+  semanas, ahí sí valdría acortarlo ya).
+
+### Gestión de administradores — lo que NO existe hoy, a propósito de no reconstruirlo desde cero (2026-09-04)
+
+**Tres cosas que este sistema no puede hacer, ninguna con endpoint ni pantalla:**
+1. **No hay forma de quitarle el acceso a un admin.** Ni flag `enabled`, ni endpoint, ni botón.
+2. **No hay forma de cambiar la clave de un admin** desde el sistema.
+3. **Los JWT no se pueden revocar** (ver arriba) — aunque hubiera cambio de clave, una sesión ya
+   emitida seguiría viva hasta expirar sola.
+
+**Decisión del centro de control (2026-09-04): no entra ahora.** Hoy hay 2 cuentas admin, las dos
+de la casa (Webiados) — el daño posible es chico, y hay trabajo con clientes reales por delante.
+**Esto no es "está bien" — es "no es prioridad todavía".**
+
+**La condición que lo enciende, para que esto no se redescubra desde cero en seis meses:** el día
+que exista una **tercera** cuenta admin, o el día que una cuenta admin sea de alguien que **no es
+de la casa** — ahí las tres ausencias dejan de ser aceptables juntas, y lo primero que hay que
+construir es **la baja**, no el cambio de clave (quitarle el acceso a alguien es más urgente que
+dejarlo cambiar su propia clave).
+
+**Mientras tanto — cómo se saca a alguien hoy, para quien lo necesite a las once de la noche:**
+la única forma es entrar a la base de producción y borrar o modificar la fila en `admin_user` a
+mano. No hay pantalla ni endpoint — no perder tiempo buscando uno.
 
 ### API surface
 
