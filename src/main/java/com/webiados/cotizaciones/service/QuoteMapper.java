@@ -36,7 +36,8 @@ public class QuoteMapper {
                 quote.getMensaje(),
                 quote.getImagenes(),
                 quote.getIvaPct(),
-                options
+                options,
+                quote.getCreatedAt()
         );
     }
 

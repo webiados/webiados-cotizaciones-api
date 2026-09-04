@@ -461,6 +461,20 @@ class QuoteServiceIT {
     }
 
     @Test
+    @DisplayName("la vista del cliente trae createdAt — de qué fecha son los precios que muestra")
+    void vistaDelClienteTraeCreatedAt() {
+        var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
+
+        var vista = quoteService.getClientViewByCodigo(creada.codigo());
+
+        assertThat(vista.createdAt())
+                .as("sin esto, el camino de upgrade sobre una cotización vieja no puede decir de "
+                        + "qué fecha es el precio que está mostrando")
+                .isNotNull();
+        assertThat(vista.createdAt()).isEqualTo(quoteService.getDetail(creada.id()).createdAt());
+    }
+
+    @Test
     @DisplayName("un rebote calza por el id de Resend, marca la cotización y avisa a NOTIFY_TO")
     void reboteCalzaPorIdDeResendYAvisa() throws InterruptedException {
         var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
