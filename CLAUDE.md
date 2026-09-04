@@ -169,6 +169,27 @@ Tres caminos en `EmailService`:
 - CORS allowed origins are configured via `CORS_ALLOWED_ORIGINS` env var (comma-separated).
 - The frontend counterpart lives at `github.com/webiados/webiados` (Angular 21) and is served from `webiados.com`: admin panel at `/admin`, client landing at `/cotizacion/{codigo}`.
 
+### La trampa de auto-invocación de `@Transactional` (ya cayó dos veces — no una tercera)
+
+**Un método `@Transactional` llamado como `this.metodo(...)` o `metodo(...)` desde otro método de
+la MISMA clase no pasa por el proxy de Spring. La anotación no hace nada — no hay excepción, no
+hay warning, la mutación simplemente se pierde en silencio (o corre con el modo de flush que
+tuviera la transacción ambiente, si hay una).**
+
+No es un descuido puntual: es una trampa del framework, y ya cayó dos veces en este repo sin que
+nadie la nombrara —
+
+1. **`SendFailureRecorder`** (2026-09-02) — se extrajo a un bean aparte para que
+   `@Transactional(REQUIRES_NEW)` sí abriera una transacción nueva de verdad al registrar un
+   `/send` fallido.
+2. **`SelectionResendIdRecorder`** (2026-09-04) — el mismo patrón exacto, encontrado por un test
+   de integración que esperaba el resultado real: el objeto en memoria mostraba el
+   `resendEmailId` guardado, la base nunca lo recibía. Leyendo el código se veía perfecto.
+
+**Antes de agregar un método `@Transactional` a un service, pregúntate quién lo llama.** Si es
+otro método de la misma clase, sacalo a un bean aparte (mismo patrón que los dos de arriba) —
+no confíes en que "se ve bien" sea suficiente: los dos casos anteriores se veían bien.
+
 ## Environment variables
 
 See `.env.example` for the full list. Key vars:
