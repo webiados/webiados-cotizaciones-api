@@ -10,10 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.TestPropertySource;
 
 import javax.sql.DataSource;
@@ -21,7 +19,6 @@ import java.nio.file.Path;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * Ensaya la carga del histórico usando <strong>los mismos archivos JSON</strong> que va a
@@ -56,10 +53,6 @@ class CargaHistoricaIT {
 
     @Autowired
     ObjectMapper json;
-
-    /** El correo se mockea: cargar el histórico no debe escribirle a nadie. */
-    @MockBean
-    JavaMailSender mailSender;
 
     /**
      * Estado <strong>guardado</strong>, no el derivado.
@@ -106,8 +99,6 @@ class CargaHistoricaIT {
         // del cliente a través del flujo del cliente (unlock + select), para que quede
         // también en la bitácora de selecciones y no solo como un estado escrito a mano.
         assertThat(estadoGuardado(creada.id())).isEqualTo(QuoteStatus.SENT);
-
-        verifyNoInteractions(mailSender);
     }
 
     @Test
@@ -139,8 +130,6 @@ class CargaHistoricaIT {
         assertThat(opciones.get(2).precioMensualTotal()).isEqualByComparingTo("88060");
 
         assertThat(opciones.get(1).recomendado()).as("la Opción B es la marcada ⭐").isTrue();
-
-        verifyNoInteractions(mailSender);
     }
 
     @Test

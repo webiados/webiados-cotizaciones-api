@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.sun.net.httpserver.HttpServer;
 import com.webiados.cotizaciones.config.AppProperties;
 import com.webiados.cotizaciones.domain.Quote;
 import com.webiados.cotizaciones.domain.QuoteOption;
@@ -12,18 +13,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
-import org.springframework.mail.MailSendException;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.boot.web.client.ClientHttpRequestFactories;
+import org.springframework.boot.web.client.ClientHttpRequestFactorySettings;
+import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 
 /**
  * "No hay errores en los logs" no es prueba de que la notificación interna se mandó — es prueba
@@ -35,6 +37,7 @@ class EmailServiceNotifySelectionTest {
 
     private ListAppender<ILoggingEvent> logs;
     private Logger emailServiceLogger;
+    private HttpServer resend;
 
     @BeforeEach
     void attachAppender() {
@@ -47,6 +50,9 @@ class EmailServiceNotifySelectionTest {
     @AfterEach
     void detachAppender() {
         emailServiceLogger.detachAppender(logs);
+        if (resend != null) {
+            resend.stop(0);
+        }
     }
 
     private static Quote quote() {
@@ -60,12 +66,55 @@ class EmailServiceNotifySelectionTest {
                 BigDecimal.valueOf(790000), BigDecimal.valueOf(45000), "CLP", false, List.of());
     }
 
+    /** Resend simulado: acepta todo con un id, sin mirar el cuerpo. */
+    private HttpServer resendQueAcepta() throws IOException {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/emails", exchange -> {
+            byte[] body = "{\"id\":\"re_test_123\"}".getBytes();
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (var os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        server.start();
+        return server;
+    }
+
+    /** Resend simulado: rechaza todo, como un SMTP caído en la versión anterior de este test. */
+    private HttpServer resendQueRechaza() throws IOException {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/emails", exchange -> {
+            byte[] body = "{\"message\":\"invalid api key\"}".getBytes();
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(401, body.length);
+            try (var os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        server.start();
+        return server;
+    }
+
+    private EmailService servicioApuntandoA(HttpServer server, String notifyTo) {
+        Duration t = Duration.ofSeconds(5);
+        var settings = ClientHttpRequestFactorySettings.DEFAULTS.withConnectTimeout(t).withReadTimeout(t);
+        var http = RestClient.builder()
+                .requestFactory(ClientHttpRequestFactories.get(settings))
+                .build();
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/emails";
+        // Constructor de paquete: este test vive en el mismo paquete que EmailService a propósito.
+        return new EmailService(propsCon(notifyTo), http, url);
+    }
+
     @Test
-    void si_el_envio_funciona_queda_una_linea_de_exito_con_el_codigo() {
-        JavaMailSender mailSender = mock(JavaMailSender.class);
-        var service = new EmailService(mailSender, propsCon("contacto@webiados.com"));
+    void si_el_envio_funciona_queda_una_linea_de_exito_con_el_codigo() throws IOException {
+        resend = resendQueAcepta();
+        var service = servicioApuntandoA(resend, "contacto@webiados.com");
         var quote = quote();
 
+        // notifySelection es @Async en el bean real; llamado directo sobre el objeto (sin proxy
+        // de Spring en este test unitario) corre síncrono, así que no hace falta esperar.
         service.notifySelection(quote, opcion(), SelectionKind.INITIAL);
 
         assertThat(logs.list)
@@ -79,10 +128,9 @@ class EmailServiceNotifySelectionTest {
     }
 
     @Test
-    void si_el_envio_falla_sigue_registrando_el_error_como_antes() {
-        JavaMailSender mailSender = mock(JavaMailSender.class);
-        doThrow(new MailSendException("SMTP caído")).when(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
-        var service = new EmailService(mailSender, propsCon("contacto@webiados.com"));
+    void si_el_envio_falla_sigue_registrando_el_error_como_antes() throws IOException {
+        resend = resendQueRechaza();
+        var service = servicioApuntandoA(resend, "contacto@webiados.com");
         var quote = quote();
 
         service.notifySelection(quote, opcion(), SelectionKind.INITIAL);
@@ -96,7 +144,8 @@ class EmailServiceNotifySelectionTest {
 
     private static AppProperties propsCon(String notifyTo) {
         return new AppProperties(null, null,
-                new AppProperties.Mail("cotizaciones@webiados.com", notifyTo),
+                new AppProperties.Mail("cotizaciones@webiados.com", notifyTo, "llave-de-prueba", null,
+                        "http://ignorado-en-este-test"), // sobrescrito por resendUrl en el constructor de EmailService
                 null, null, null, null, null);
     }
 }

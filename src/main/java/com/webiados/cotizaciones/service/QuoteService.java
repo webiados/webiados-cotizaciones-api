@@ -125,13 +125,17 @@ public class QuoteService {
             throw new IllegalStateException("La cotización no tiene opciones; no se puede enviar");
         }
 
+        String resendEmailId;
         try {
-            emailService.sendQuoteToClient(quote, publicUrl(quote.getCodigo()));
+            resendEmailId = emailService.sendQuoteToClient(quote, publicUrl(quote.getCodigo()));
         } catch (RuntimeException ex) {
             sendFailureRecorder.record(id, ex.getMessage());
             throw ex;
         }
         quote.markSent(Instant.now());
+        // Después de markSent a propósito: markSent limpia cualquier rebote/fallo viejo, y este
+        // id es del intento nuevo que sí funcionó.
+        quote.recordResendEmailId(resendEmailId);
 
         var history = selectionRepo.findByQuoteIdOrderByCreatedAtAsc(id);
         return mapper.toDetail(quote, history, Instant.now());
@@ -266,5 +270,26 @@ public class QuoteService {
     @Transactional
     public void recordUnlock(String codigo) {
         quoteRepo.findByCodigo(codigo).ifPresent(q -> q.markUnlocked(Instant.now()));
+    }
+
+    /**
+     * Registra que Resend avisó, por webhook, que un correo ya aceptado rebotó de verdad, y
+     * avisa a quien puede llamar por teléfono — mismo mecanismo que {@code notifySelection} y
+     * {@code notifyStale}, no una alerta nueva.
+     *
+     * @return true si el id calzó con una cotización real; false si no calzó con ninguna (un
+     *         correo interno a NOTIFY_TO, o un webhook de un envío de otro entorno) — el
+     *         llamador lo loguea para que el volumen de "no calzó" también quede visible, no
+     *         solo los que sí.
+     */
+    @Transactional
+    public boolean recordBounce(String resendEmailId, String motivo) {
+        return quoteRepo.findByResendEmailId(resendEmailId)
+                .map(q -> {
+                    q.markBounced(Instant.now(), motivo);
+                    emailService.notifyBounce(q, motivo);
+                    return true;
+                })
+                .orElse(false);
     }
 }

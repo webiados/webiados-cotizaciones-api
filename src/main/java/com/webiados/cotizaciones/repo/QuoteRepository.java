@@ -20,6 +20,9 @@ public interface QuoteRepository extends JpaRepository<Quote, UUID> {
 
     boolean existsByCodigo(String codigo);
 
+    /** Para calzar el webhook de rebote de Resend contra la cotización exacta que lo mandó. */
+    Optional<Quote> findByResendEmailId(String resendEmailId);
+
     List<Quote> findAllByOrderByCreatedAtDesc();
 
     /**

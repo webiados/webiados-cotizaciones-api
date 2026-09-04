@@ -46,6 +46,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/admin/auth/login").permitAll()
                         .requestMatchers("/api/client/quotes/*/unlock").permitAll()
+                        // Público a nivel de Spring Security a propósito: no hay sesión de admin
+                        // ni de cliente que lo llame — Resend sí. Queda protegido por la firma
+                        // Svix que verifica el propio controller, no por un JWT.
+                        .requestMatchers("/api/webhooks/resend").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated()
                 )

@@ -1,5 +1,6 @@
 package com.webiados.cotizaciones.service;
 
+import com.sun.net.httpserver.HttpServer;
 import com.webiados.cotizaciones.db.TestPostgres;
 import com.webiados.cotizaciones.domain.QuoteStatus;
 import com.webiados.cotizaciones.dto.admin.CreateQuoteRequest;
@@ -7,6 +8,7 @@ import com.webiados.cotizaciones.dto.admin.OptionRequest;
 import com.webiados.cotizaciones.dto.admin.UpdateQuoteRequest;
 import com.webiados.cotizaciones.dto.lead.Lead;
 import com.webiados.cotizaciones.repo.QuoteRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,26 +17,22 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import jakarta.mail.Session;
-import jakarta.mail.internet.MimeMessage;
-import org.springframework.mail.MailSendException;
-import org.springframework.mail.javamail.JavaMailSender;
-
-import java.util.Properties;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 
 import javax.sql.DataSource;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -60,14 +58,50 @@ class QuoteServiceIT {
         }
     }
 
+    // Resend simulado. shouldFail controla, en el momento de cada test, si el próximo envío se
+    // acepta o se rechaza — el server es uno solo para toda la clase (un solo contexto acá, sin
+    // @DirtiesContext), así que el control es por variable, no por servidor distinto.
+    private static HttpServer resend;
+    private static final AtomicBoolean shouldFail = new AtomicBoolean(false);
+    private static final AtomicInteger correosEnviados = new AtomicInteger();
+
+    @DynamicPropertySource
+    static void resendSimulado(DynamicPropertyRegistry registry) throws IOException {
+        resend = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        resend.createContext("/emails", exchange -> {
+            correosEnviados.incrementAndGet();
+            byte[] body;
+            int status;
+            if (shouldFail.get()) {
+                status = 500;
+                body = "{\"message\":\"Resend caído\"}".getBytes();
+            } else {
+                status = 200;
+                body = "{\"id\":\"re_test_quoteservice\"}".getBytes();
+            }
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(status, body.length);
+            try (var os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        resend.start();
+        registry.add("app.mail.api-url",
+                () -> "http://127.0.0.1:" + resend.getAddress().getPort() + "/emails");
+        registry.add("app.mail.api-key", () -> "llave-de-prueba");
+    }
+
+    @BeforeEach
+    void reiniciarResendSimulado() {
+        shouldFail.set(false);
+        correosEnviados.set(0);
+    }
+
     @Autowired
     QuoteService quoteService;
 
     @Autowired
     QuoteRepository quoteRepo;
-
-    @MockBean
-    JavaMailSender mailSender;
 
     @MockBean
     LeadClient leadClient;
@@ -129,19 +163,16 @@ class QuoteServiceIT {
     @DisplayName("enviarla la deja SENT, con fecha, y le manda el correo al cliente")
     void enviarMandaCorreoAlCliente() {
         var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
-        when(mailSender.createMimeMessage()).thenReturn(freshMime());
 
         var detalle = quoteService.send(creada.id());
 
         assertThat(detalle.status()).isEqualTo(QuoteStatus.SENT);
         assertThat(detalle.sentAt()).isNotNull();
         // El contenido del correo (botón, código, clave, vigencia) se verifica en EmailContentTest.
-        verify(mailSender).send(any(MimeMessage.class));
-    }
-
-    /** MimeMessage vacío pero real, para que MimeMessageHelper pueda poblarlo en el mock. */
-    private MimeMessage freshMime() {
-        return new MimeMessage(Session.getInstance(new Properties()));
+        assertThat(correosEnviados.get()).isEqualTo(1);
+        // El id que Resend devolvió queda guardado — es la llave para el webhook de rebote.
+        assertThat(quoteRepo.findById(creada.id()).orElseThrow().getResendEmailId())
+                .isEqualTo("re_test_quoteservice");
     }
 
     @Test
@@ -160,11 +191,10 @@ class QuoteServiceIT {
     @DisplayName("si el correo falla, la cotización NO queda como enviada")
     void correoFallidoNoMarcaSent() {
         var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
-        when(mailSender.createMimeMessage()).thenReturn(freshMime());
-        doThrow(new MailSendException("SMTP caído")).when(mailSender).send(any(MimeMessage.class));
+        shouldFail.set(true);
 
         assertThatThrownBy(() -> quoteService.send(creada.id()))
-                .isInstanceOf(MailSendException.class);
+                .isInstanceOf(IllegalStateException.class);
 
         assertThat(quoteRepo.findById(creada.id()).orElseThrow().getStatus())
                 .as("una SENT sin correo enviado falsearía la tasa de cierre")
@@ -175,28 +205,26 @@ class QuoteServiceIT {
     @DisplayName("un correo fallido deja una marca visible en el panel, no solo en el log")
     void correoFallidoDejaMarcaVisible() {
         var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
-        when(mailSender.createMimeMessage()).thenReturn(freshMime());
-        doThrow(new MailSendException("SMTP caído")).when(mailSender).send(any(MimeMessage.class));
+        shouldFail.set(true);
 
-        assertThatThrownBy(() -> quoteService.send(creada.id())).isInstanceOf(MailSendException.class);
+        assertThatThrownBy(() -> quoteService.send(creada.id())).isInstanceOf(IllegalStateException.class);
 
         var detalle = quoteService.getDetail(creada.id());
         assertThat(detalle.sendFailedAt())
                 .as("la marca tiene que sobrevivir a que la transacción del intento se revierta")
                 .isNotNull();
-        assertThat(detalle.sendFailureReason()).contains("SMTP caído");
+        assertThat(detalle.sendFailureReason()).contains("Resend caído");
     }
 
     @Test
     @DisplayName("reintentar sin recrear nada: si el segundo intento funciona, la marca de fallo se borra")
     void reintentarConExitoBorraLaMarca() {
         var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
-        when(mailSender.createMimeMessage()).thenReturn(freshMime());
-        doThrow(new MailSendException("SMTP caído")).when(mailSender).send(any(MimeMessage.class));
-        assertThatThrownBy(() -> quoteService.send(creada.id())).isInstanceOf(MailSendException.class);
+        shouldFail.set(true);
+        assertThatThrownBy(() -> quoteService.send(creada.id())).isInstanceOf(IllegalStateException.class);
         assertThat(quoteService.getDetail(creada.id()).sendFailedAt()).isNotNull();
 
-        doNothing().when(mailSender).send(any(MimeMessage.class)); // el segundo intento sí funciona
+        shouldFail.set(false); // el segundo intento sí funciona
         quoteService.send(creada.id()); // mismo id, no se recreó nada
 
         var detalle = quoteService.getDetail(creada.id());
@@ -209,7 +237,6 @@ class QuoteServiceIT {
     @DisplayName("rechazar la deja REJECTED con fecha")
     void rechazar() {
         var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
-        when(mailSender.createMimeMessage()).thenReturn(freshMime());
         quoteService.send(creada.id());
 
         var detalle = quoteService.reject(creada.id());
@@ -393,7 +420,9 @@ class QuoteServiceIT {
         // carga histórica dejó la marca de enviada en la base.
         assertThat(quoteRepo.findById(creada.id()).orElseThrow().getStatus())
                 .isEqualTo(QuoteStatus.SENT);
-        org.mockito.Mockito.verifyNoInteractions(mailSender);
+        assertThat(correosEnviados.get())
+                .as("markSentManually registra una entrega fuera del sistema; no debe mandar nada")
+                .isZero();
     }
 
     @Test
@@ -429,5 +458,41 @@ class QuoteServiceIT {
     void noExiste() {
         assertThatThrownBy(() -> quoteService.getDetail(java.util.UUID.randomUUID()))
                 .isInstanceOf(NoSuchElementException.class);
+    }
+
+    @Test
+    @DisplayName("un rebote calza por el id de Resend, marca la cotización y avisa a NOTIFY_TO")
+    void reboteCalzaPorIdDeResendYAvisa() throws InterruptedException {
+        var creada = quoteService.create(cotizacion("cliente@ejemplo.cl"));
+        quoteService.send(creada.id()); // deja resendEmailId = "re_test_quoteservice"
+        int enviadosAntes = correosEnviados.get();
+
+        boolean calzo = quoteService.recordBounce("re_test_quoteservice", "mailbox does not exist");
+
+        assertThat(calzo).isTrue();
+        var detalle = quoteService.getDetail(creada.id());
+        assertThat(detalle.status())
+                .as("el rebote es información adicional, no un rollback — el envío sí se había aceptado")
+                .isEqualTo(QuoteStatus.SENT);
+
+        // notifyBounce es @Async: espera a que el aviso interno llegue al Resend simulado.
+        long limite = System.currentTimeMillis() + 3000;
+        while (correosEnviados.get() <= enviadosAntes && System.currentTimeMillis() < limite) {
+            Thread.sleep(50);
+        }
+        assertThat(correosEnviados.get())
+                .as("el rebote tiene que avisarle a quien puede llamar por teléfono, no quedar en silencio")
+                .isGreaterThan(enviadosAntes);
+    }
+
+    @Test
+    @DisplayName("un id de Resend que no calza con ninguna cotización no revienta ni manda nada")
+    void reboteQueNoCalzaNoRevienta() {
+        int enviadosAntes = correosEnviados.get();
+
+        boolean calzo = quoteService.recordBounce("re_de_un_correo_interno", "algún motivo");
+
+        assertThat(calzo).isFalse();
+        assertThat(correosEnviados.get()).isEqualTo(enviadosAntes);
     }
 }

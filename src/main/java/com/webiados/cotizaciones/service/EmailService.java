@@ -1,20 +1,37 @@
 package com.webiados.cotizaciones.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.webiados.cotizaciones.config.AppProperties;
 import com.webiados.cotizaciones.domain.Quote;
 import com.webiados.cotizaciones.domain.QuoteOption;
 import com.webiados.cotizaciones.domain.SelectionKind;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.client.ClientHttpRequestFactories;
+import org.springframework.boot.web.client.ClientHttpRequestFactorySettings;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.time.Duration;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Único camino de envío de correo: la API HTTP de Resend. No SMTP, no Gmail de respaldo — dos
+ * caminos para lo mismo se desalinean, y el que no se usa se pudre sin que nadie lo note
+ * (decisión 2026-09-04, ver {@code docs/correo-smtp.md}).
+ *
+ * <p>Se manda por HTTP y no por el SMTP de Resend a propósito: la API devuelve un {@code id}
+ * por cada correo aceptado, y ese id es la única forma de calzar el webhook de rebote contra
+ * la cotización exacta — emparejar por el correo del cliente + una ventana de tiempo es un
+ * supuesto, emparejar por este id no lo es.
+ */
 @Service
 public class EmailService {
 
@@ -27,10 +44,10 @@ public class EmailService {
     private static final String SOFT = "#f5f5f5";
     private static final String PAPER = "#e5e8ef";
     private static final String SITIO = "https://webiados.com";
-    // Logo blanco, para el encabezado sobre fondo tinta. Va incrustado en el correo (cid), NO como
-    // URL externa: el original del sitio es .webp, y WebP no lo soportan todos los clientes de
-    // correo (Outlook no lo soporta; el proxy de imágenes de Gmail lo mostró corrupto en vez de
-    // renderizarlo). PNG incrustado no depende del sitio ni del formato.
+    // Logo blanco, para el encabezado sobre fondo tinta. Va incrustado en el correo (content_id),
+    // NO como URL externa: el original del sitio es .webp, y WebP no lo soportan todos los
+    // clientes de correo (Outlook no lo soporta; el proxy de imágenes de Gmail lo mostró corrupto
+    // en vez de renderizarlo). PNG incrustado no depende del sitio ni del formato.
     private static final String LOGO_CID = "logo-webiados";
     private static final String LOGO_RESOURCE = "email/logo-webiados-white.png";
     // Pila de fuentes del sistema: NO se pueden usar fuentes web (Bricolage) en un correo.
@@ -39,23 +56,43 @@ public class EmailService {
     private static final String MONO =
             "'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace";
 
-    private final JavaMailSender mailSender;
+    private final RestClient http;
     private final AppProperties props;
+    private final String resendUrl;
 
-    public EmailService(JavaMailSender mailSender, AppProperties props) {
-        this.mailSender = mailSender;
+    // Cargado una sola vez: el logo no cambia entre requests.
+    private volatile String logoBase64;
+
+    @Autowired
+    public EmailService(AppProperties props) {
+        this(props, buildClient(), props.mail().apiUrl());
+    }
+
+    /** Para pruebas: inyectar un RestClient apuntando a un Resend simulado. */
+    EmailService(AppProperties props, RestClient http, String resendUrl) {
         this.props = props;
+        this.http = http;
+        this.resendUrl = resendUrl;
+    }
+
+    private static RestClient buildClient() {
+        Duration t = Duration.ofSeconds(10);
+        var settings = ClientHttpRequestFactorySettings.DEFAULTS.withConnectTimeout(t).withReadTimeout(t);
+        return RestClient.builder().requestFactory(ClientHttpRequestFactories.get(settings)).build();
     }
 
     /**
      * Le manda la cotización al cliente: el link y la clave de acceso, con la identidad de
-     * Webiados. Va como HTML (tablas + estilos en línea, para que Gmail no lo rompa) y con una
-     * versión en texto plano en el mismo correo (sin ella, varios filtros lo mandan a spam).
+     * Webiados. HTML (tablas + estilos en línea, para que Gmail no lo rompa) con una versión en
+     * texto plano en el mismo correo (sin ella, varios filtros lo mandan a spam).
      *
-     * <p>A diferencia de {@link #notifySelection}, este método <strong>no es async y propaga la
-     * excepción</strong>: si el correo no sale, la cotización no puede quedar marcada como enviada.
+     * <p>Síncrono y propaga la excepción a propósito: si el correo no sale, la cotización no
+     * puede quedar marcada como enviada.
+     *
+     * @return el id que Resend asignó al envío — se guarda en la cotización para poder calzar
+     *         un rebote futuro contra ella exactamente, sin adivinar.
      */
-    public void sendQuoteToClient(Quote quote, String url) {
+    public String sendQuoteToClient(Quote quote, String url) {
         if (quote.getClientEmail() == null || quote.getClientEmail().isBlank()) {
             throw new IllegalStateException(
                     "La cotización no tiene correo del cliente: no hay a quién enviarla");
@@ -79,23 +116,17 @@ public class EmailService {
         String html = buildHtml(nombre, url, codigo, clave, vigencia);
         String text = buildText(nombre, url, codigo, clave, vigencia);
 
-        try {
-            MimeMessage mime = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mime, true, "UTF-8");
-            helper.setFrom(props.mail().from());
-            helper.setTo(quote.getClientEmail());
-            helper.setReplyTo(props.mail().notifyTo());
-            helper.setSubject(subject);
-            helper.setText(text, html); // (texto plano, html) → multipart/alternative
-            helper.addInline(LOGO_CID, new ClassPathResource(LOGO_RESOURCE), "image/png");
-            mailSender.send(mime);
-        } catch (MessagingException ex) {
-            // No debería pasar (armamos el mensaje nosotros), pero si pasa, que la cotización
-            // NO quede marcada como enviada: se propaga.
-            throw new IllegalStateException("No se pudo construir el correo de la cotización", ex);
-        }
+        var attachment = Map.of(
+                "filename", "logo-webiados.png",
+                "content", loadLogoBase64(),
+                "content_id", LOGO_CID);
 
-        log.info("Cotización {} enviada por correo a {}", codigo, quote.getClientEmail());
+        String resendId = sendViaResend(quote.getClientEmail(), props.mail().notifyTo(), subject,
+                html, text, List.of(attachment));
+
+        log.info("Cotización {} enviada por correo a {} (resend id {})",
+                codigo, quote.getClientEmail(), resendId);
+        return resendId;
     }
 
     /** HTML del correo: tablas para el layout, estilos en línea, 600px, fuentes del sistema. */
@@ -210,8 +241,8 @@ public class EmailService {
     public void notifySelection(Quote quote, QuoteOption option, SelectionKind kind) {
         try {
             String subject = kind == SelectionKind.UPGRADE
-                    ? "⬆️ Upgrade — Cotización %s — %s".formatted(quote.getCodigo(), quote.getClientName())
-                    : "✅ Cotización %s — %s eligió %s".formatted(
+                    ? "Upgrade — Cotización %s — %s".formatted(quote.getCodigo(), quote.getClientName())
+                    : "Cotización %s — %s eligió %s".formatted(
                             quote.getCodigo(), quote.getClientName(), option.getTitulo());
 
             String body = """
@@ -230,12 +261,7 @@ public class EmailService {
                     option.getCurrency(),
                     kind == SelectionKind.UPGRADE ? "UPGRADE" : "SELECCIÓN INICIAL");
 
-            var message = new SimpleMailMessage();
-            message.setFrom(props.mail().from());
-            message.setTo(props.mail().notifyTo());
-            message.setSubject(subject);
-            message.setText(body);
-            mailSender.send(message);
+            sendViaResend(props.mail().notifyTo(), null, subject, null, body, List.of());
             // Antes solo se registraba el fallo: "no hay error en el log" no es prueba de que se
             // mandó, es prueba de que no se lanzó una excepción — y un envío que falla sin lanzar
             // ninguna se vería exactamente igual. Con el código acá, "¿se avisó de esta?" se
@@ -250,7 +276,7 @@ public class EmailService {
     @Async
     public void notifyStale(Quote quote, long dias) {
         try {
-            String subject = "⏳ Sin respuesta hace %d días — %s (%s)"
+            String subject = "Sin respuesta hace %d días — %s (%s)"
                     .formatted(dias, quote.getClientName(), quote.getCodigo());
             String body = """
                     Cliente: %s
@@ -263,15 +289,108 @@ public class EmailService {
                     quote.getCodigo(),
                     dias);
 
-            var message = new SimpleMailMessage();
-            message.setFrom(props.mail().from());
-            message.setTo(props.mail().notifyTo());
-            message.setSubject(subject);
-            message.setText(body);
-            mailSender.send(message);
+            sendViaResend(props.mail().notifyTo(), null, subject, null, body, List.of());
             log.info("Aviso de cotización sin respuesta enviado para cotización {}", quote.getCodigo());
         } catch (Exception ex) {
             log.error("Error enviando aviso de cotización sin respuesta para {}", quote.getCodigo(), ex);
+        }
+    }
+
+    /**
+     * Aviso interno de {@link com.webiados.cotizaciones.web.ResendWebhookController} — un
+     * correo que YA se había aceptado rebotó de verdad. Mismo mecanismo que las otras dos
+     * alertas internas, no una construida desde cero: le llega a quien puede llamar por
+     * teléfono, con lo que necesita para hacerlo.
+     */
+    @Async
+    public void notifyBounce(Quote quote, String motivo) {
+        try {
+            String subject = "Rebotó el correo — %s (%s)".formatted(quote.getClientName(), quote.getCodigo());
+            String body = """
+                    Cliente: %s
+                    Email: %s
+                    Código: %s
+                    Motivo del rebote: %s
+
+                    El correo se había aceptado al enviarlo, pero Resend avisó que no llegó de
+                    verdad. Esta cotización probablemente nunca la vio el cliente — vale la pena
+                    llamarlo en vez de esperar una respuesta que no va a llegar por este canal.
+                    """.formatted(
+                    quote.getClientName(),
+                    quote.getClientEmail() != null ? quote.getClientEmail() : "—",
+                    quote.getCodigo(),
+                    motivo != null ? motivo : "—");
+
+            sendViaResend(props.mail().notifyTo(), null, subject, null, body, List.of());
+            log.info("Aviso de rebote enviado para cotización {}", quote.getCodigo());
+        } catch (Exception ex) {
+            log.error("Error enviando aviso de rebote para {}", quote.getCodigo(), ex);
+        }
+    }
+
+    // --- Resend ---------------------------------------------------------------------------
+
+    private String sendViaResend(String to, String replyTo, String subject, String html, String text,
+                                  List<Map<String, String>> attachments) {
+        requireApiKey();
+
+        var payload = new java.util.LinkedHashMap<String, Object>();
+        payload.put("from", props.mail().from());
+        payload.put("to", List.of(to));
+        if (replyTo != null && !replyTo.isBlank()) {
+            payload.put("reply_to", replyTo);
+        }
+        payload.put("subject", subject);
+        if (html != null) {
+            payload.put("html", html);
+        }
+        if (text != null) {
+            payload.put("text", text);
+        }
+        if (!attachments.isEmpty()) {
+            payload.put("attachments", attachments);
+        }
+
+        JsonNode response;
+        try {
+            response = http.post()
+                    .uri(resendUrl)
+                    .header("Authorization", "Bearer " + props.mail().apiKey())
+                    .header("Content-Type", "application/json")
+                    .body(payload)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (Exception ex) {
+            throw new IllegalStateException("No se pudo enviar el correo por Resend: " + ex.getMessage(), ex);
+        }
+        if (response == null || !response.hasNonNull("id")) {
+            throw new IllegalStateException(
+                    "Resend aceptó la petición pero no devolvió un id de envío — respuesta: " + response);
+        }
+        return response.get("id").asText();
+    }
+
+    private void requireApiKey() {
+        String apiKey = props.mail().apiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException(
+                    "El envío de correo requiere la llave de Resend (RESEND_API_KEY) y no está "
+                            + "configurada. Pídesela a Felipe y ponla en Railway.");
+        }
+    }
+
+    private String loadLogoBase64() {
+        String cached = logoBase64;
+        if (cached != null) {
+            return cached;
+        }
+        try {
+            byte[] bytes = new ClassPathResource(LOGO_RESOURCE).getContentAsByteArray();
+            String encoded = Base64.getEncoder().encodeToString(bytes);
+            logoBase64 = encoded;
+            return encoded;
+        } catch (IOException ex) {
+            throw new UncheckedIOException("No se pudo leer el logo del correo (" + LOGO_RESOURCE + ")", ex);
         }
     }
 }

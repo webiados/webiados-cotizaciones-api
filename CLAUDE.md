@@ -122,19 +122,35 @@ wrong — see `docs/AUDITORIA.md` §2.1.
 | GET | `/api/client/quotes/{codigo}` | client | The quote as the client sees it |
 | POST | `/api/client/quotes/{codigo}/select` | client | Client picks an option |
 | GET | `/actuator/health` | public | Health check |
+| POST | `/api/webhooks/resend` | firma Svix | Resend avisa acá cuando un correo ya aceptado rebota o el destinatario lo marca como spam. Protegido por la firma, no por JWT — ver `docs/correo-resend.md` |
 
 Client tokens carry the `codigo` as a claim and every client endpoint verifies it matches
 the path — a valid token cannot read another client's quote.
 
 ### Email
-`EmailService` sends transactional mail via SMTP. **Config y troubleshooting:
-[`docs/correo-smtp.md`](docs/correo-smtp.md)** (hoy: Gmail con App Password; Resend como plan B).
-Two paths:
+
+**Único camino de envío: la API HTTP de Resend.** Migrado desde Gmail SMTP el 2026-09-04 — la
+razón que más pesó no fue el rebote, fue el riesgo de mandar correo transaccional desde la cuenta
+de Gmail de la empresa: si Google la marca por volumen o patrón, no se pierden las cotizaciones,
+se pierde el correo de Webiados entero. No queda Gmail de respaldo a propósito — dos caminos para
+lo mismo se desalinean, y el que no se usa se pudre sin que nadie lo note. **Config y
+troubleshooting: [`docs/correo-resend.md`](docs/correo-resend.md).**
+
+Se manda por HTTP y no por el SMTP de Resend a propósito: la API devuelve un `id` por cada correo
+aceptado, que se guarda en la cotización (`resendEmailId`) — es la única forma de calzar un
+rebote futuro contra la cotización exacta que lo mandó, sin adivinar por correo + tiempo.
+
+Tres caminos en `EmailService`:
 
 - `sendQuoteToClient` — sends the landing URL + `clave` **to the client**. Synchronous and
   propagates failures on purpose: a quote must never be marked `SENT` if the mail didn't go out.
-- `notifySelection` — `@Async` internal notice **to Webiados** (`NOTIFY_TO`) when a client
-  picks an option. Failures are logged and swallowed.
+- `notifySelection` / `notifyStale` — `@Async` internal notices **to Webiados** (`NOTIFY_TO`).
+  Failures are logged and swallowed.
+- `notifyBounce` — mismo mecanismo que las anteriores, disparado por
+  `ResendWebhookController` (`POST /api/webhooks/resend`) cuando Resend avisa que un correo ya
+  aceptado rebotó de verdad — antes eso se veía exactamente igual que una cotización que el
+  cliente ignoró; ahora hay una marca (`bounceDetectedAt`) y un aviso a quien puede llamar por
+  teléfono.
 
 ## Conventions
 

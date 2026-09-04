@@ -99,6 +99,22 @@ public class Quote {
     @Column(name = "send_failure_reason")
     private String sendFailureReason;
 
+    /** El id que Resend devuelve al aceptar el envío. Llave real para calzar el webhook de
+     *  rebote contra esta cotización exacta — no un supuesto por correo + tiempo. */
+    @Column(name = "resend_email_id", length = 64)
+    private String resendEmailId;
+
+    /**
+     * Cuándo Resend avisó, por webhook, que el correo YA ACEPTADO rebotó de verdad —
+     * distinto de {@link #sendFailedAt}, que es un fallo al momento de enviar. Este se
+     * entera minutos u horas después: el correo se veía enviado y no llegó.
+     */
+    @Column(name = "bounce_detected_at")
+    private Instant bounceDetectedAt;
+
+    @Column(name = "bounce_reason")
+    private String bounceReason;
+
     /** Porcentaje de IVA vigente al emitir. Se guarda para que el histórico no cambie. */
     @Column(name = "iva_pct", nullable = false)
     private int ivaPct = IVA_PCT_CHILE;
@@ -184,6 +200,26 @@ public class Quote {
         // funcione no debería seguir mostrando la marca de un intento viejo.
         this.sendFailedAt = null;
         this.sendFailureReason = null;
+        // Mismo criterio: un reenvío que sí funciona deja atrás un rebote viejo. Si vuelve a
+        // rebotar, el webhook lo va a marcar de nuevo con el resendEmailId del intento nuevo.
+        this.bounceDetectedAt = null;
+        this.bounceReason = null;
+    }
+
+    /** Guarda el id que Resend devolvió al aceptar el envío — llave para el webhook de rebote. */
+    public void recordResendEmailId(String resendEmailId) {
+        this.resendEmailId = resendEmailId;
+    }
+
+    /**
+     * Registra que Resend avisó, por webhook, que este envío YA ACEPTADO rebotó de verdad.
+     * No cambia el status — igual que {@link #markSendFailed}, sigue en el estado que tenía
+     * (probablemente SENT, porque el envío sí se había aceptado); el rebote es información
+     * adicional, no un rollback del estado.
+     */
+    public void markBounced(Instant when, String motivo) {
+        this.bounceDetectedAt = when;
+        this.bounceReason = (motivo != null && !motivo.isBlank()) ? motivo : "Motivo desconocido";
     }
 
     /**
@@ -365,6 +401,18 @@ public class Quote {
 
     public String getSendFailureReason() {
         return sendFailureReason;
+    }
+
+    public String getResendEmailId() {
+        return resendEmailId;
+    }
+
+    public Instant getBounceDetectedAt() {
+        return bounceDetectedAt;
+    }
+
+    public String getBounceReason() {
+        return bounceReason;
     }
 
     public Instant getRejectedAt() {

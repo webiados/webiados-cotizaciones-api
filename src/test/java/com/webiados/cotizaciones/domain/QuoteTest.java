@@ -309,4 +309,67 @@ class QuoteTest {
             assertThat(q.getSendFailureReason()).isNull();
         }
     }
+
+    @Nested
+    @DisplayName("rebote (Resend, webhook)")
+    class Rebote {
+
+        @Test
+        @DisplayName("nace sin id de Resend ni marca de rebote")
+        void naceSinMarca() {
+            var q = nueva();
+            assertThat(q.getResendEmailId()).isNull();
+            assertThat(q.getBounceDetectedAt()).isNull();
+            assertThat(q.getBounceReason()).isNull();
+        }
+
+        @Test
+        @DisplayName("guardar el id de Resend no cambia nada más")
+        void guardarIdDeResend() {
+            var q = nueva();
+            q.recordResendEmailId("re_abc123");
+
+            assertThat(q.getResendEmailId()).isEqualTo("re_abc123");
+            assertThat(q.getStatus()).isEqualTo(QuoteStatus.PENDING);
+        }
+
+        @Test
+        @DisplayName("marcar un rebote deja la fecha y el motivo, sin tocar el estado")
+        void marcarReboteGuardaFechaYMotivo() {
+            var q = nueva();
+            q.recordResendEmailId("re_abc123");
+            q.markSent(AHORA);
+
+            q.markBounced(AHORA.plus(2, ChronoUnit.HOURS), "Permanent");
+
+            assertThat(q.getBounceDetectedAt()).isEqualTo(AHORA.plus(2, ChronoUnit.HOURS));
+            assertThat(q.getBounceReason()).isEqualTo("Permanent");
+            assertThat(q.getStatus())
+                    .as("el rebote es información adicional, no un rollback del estado — el envío sí se había aceptado")
+                    .isEqualTo(QuoteStatus.SENT);
+        }
+
+        @Test
+        @DisplayName("un motivo nulo no deja el campo en blanco silencioso")
+        void motivoNuloQuedaExplicito() {
+            var q = nueva();
+            q.markBounced(AHORA, null);
+
+            assertThat(q.getBounceReason()).isNotBlank();
+        }
+
+        @Test
+        @DisplayName("reenviar y que funcione borra la marca de rebote anterior")
+        void reenviarDeVerdadLimpiaLaMarca() {
+            var q = nueva();
+            q.recordResendEmailId("re_viejo");
+            q.markSent(AHORA);
+            q.markBounced(AHORA.plus(1, ChronoUnit.HOURS), "Permanent");
+
+            q.markSent(AHORA.plus(1, ChronoUnit.DAYS)); // reintento manual, esta vez sin rebotar
+
+            assertThat(q.getBounceDetectedAt()).isNull();
+            assertThat(q.getBounceReason()).isNull();
+        }
+    }
 }

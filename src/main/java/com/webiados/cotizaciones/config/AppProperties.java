@@ -51,7 +51,18 @@ public record AppProperties(
     public record Quote(int validityDays, String publicBaseUrl) {
     }
 
-    public record Mail(String from, String notifyTo) {
+    /**
+     * @param from          remitente — tiene que ser una dirección del dominio verificado en Resend
+     * @param notifyTo      buzón interno de avisos (selección, sin respuesta, rebote)
+     * @param apiKey        llave de Resend, dedicada a este servicio (no la de otro flujo del
+     *                      ecosistema — revocar una por un problema no debe romper dos cosas)
+     * @param webhookSecret firma del webhook de Resend (Svix, prefijo {@code whsec_}). Sin esto
+     *                      el webhook rechaza todo — un endpoint público que marca cotizaciones
+     *                      como no entregadas no puede aceptar avisos sin verificar quién los manda
+     * @param apiUrl        endpoint de envío de Resend — configurable para poder apuntar a un
+     *                      servidor simulado en pruebas de integración, igual que {@code pricing.url}
+     */
+    public record Mail(String from, String notifyTo, String apiKey, String webhookSecret, String apiUrl) {
     }
 
     public record Cors(List<String> allowedOrigins) {
